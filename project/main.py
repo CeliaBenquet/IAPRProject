@@ -25,30 +25,28 @@ parser.add_argument('--display_training',
                     action = 'store_true', default = False,
                     help = 'If training, print performances')
 
-parser.add_argument('--model',
+parser.add_argument('--model_digits',
                     type = str, default = 'model/model_MNIST.pt',
-                    help = 'Path to trained model')
+                    help = 'Path to trained model for digits')
 
 parser.add_argument('--epochs',
                     type = int, default = 25,
                     help = 'Number of epochs for the training (default:25)')
-
-
 
 args = parser.parse_args()
 
 ## create images from the video &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 create_data(args.input)
 
-## generate and train model for number recognition &&&&&&&&&&&&&&&&&&&&&&&&&&
-
+## generate and train model for digits recognition &&&&&&&&&&&&&&&&&&&&&&&&&&
 if args.training: 
     #train the parameters of the model on the dataset
-    train_model(args.model, args.epochs, args.display_training)
+    train_model(args.model_digits, args.epochs, args.display_training)
 
-if os.path.exists(args.model):
+if os.path.exists(args.model_digits):
     model=Net()
-    model.load_state_dict(torch.load(args.model))
+    model.load_state_dict(torch.load(args.model_digits))
     model.eval()
     print('hello you made it here')
     #use output=model(input) to use the model 
+
