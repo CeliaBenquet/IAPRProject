@@ -40,7 +40,7 @@ args = parser.parse_args()
 ## create images from the video &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 create_data(args.input)
 
-## create a model to train on number recognition &&&&&&&&&&&&&&&&&&&&&&&&&&
+## generate and train model for number recognition &&&&&&&&&&&&&&&&&&&&&&&&&&
 
 if args.training: 
     #train the parameters of the model on the dataset
