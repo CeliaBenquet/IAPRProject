@@ -71,20 +71,21 @@ def extract_labels(filename, image_number):
         labels = np.frombuffer(buf, dtype=np.uint8).astype(np.int64)
     return labels
 
-def create_mnist_data(n_input):
+
+
+def augment_dataset(data, labels):
+    pass
+
+
+def create_mnist_data(n_input, data_dir):
     image_shape = (28, 28)
     train_set_size = 60000
     test_set_size = 10000
 
-    data_base_path = os.path.join(os.pardir, 'data')
-    data_folder = 'lab-03-data'
-
-    data_part2_folder = os.path.join(data_base_path, data_folder, 'part2')
-
-    train_images_path = os.path.join(data_part2_folder, 'train-images-idx3-ubyte.gz')
-    train_labels_path = os.path.join(data_part2_folder, 'train-labels-idx1-ubyte.gz')
-    test_images_path = os.path.join(data_part2_folder, 't10k-images-idx3-ubyte.gz')
-    test_labels_path = os.path.join(data_part2_folder, 't10k-labels-idx1-ubyte.gz')
+    train_images_path = os.path.join(data_dir, 'train-images-idx3-ubyte.gz')
+    train_labels_path = os.path.join(data_dir, 'train-labels-idx1-ubyte.gz')
+    test_images_path = os.path.join(data_dir, 't10k-images-idx3-ubyte.gz')
+    test_labels_path = os.path.join(data_dir, 't10k-labels-idx1-ubyte.gz')
 
     #extract data and labels
     train_images = extract_data(train_images_path, image_shape, train_set_size)
@@ -96,12 +97,19 @@ def create_mnist_data(n_input):
     train_images, train_labels = preprocessing(train_images,train_labels,n_input)
     test_images, test_labels = preprocessing(test_images,test_labels,n_input)
 
+    print(train_images.size())
+    print(train_labels)
+
     return train_images, test_images, train_labels, test_labels
 
-def preprocessing(data,labels,n_input): 
+
+
+def preprocessing(data, labels, n_input): 
+    data = data[labels != 9]
+    labels = labels[labels != 9]
     return (torch.from_numpy(data).view(-1, n_input), torch.from_numpy(labels))
 
-def train_model(path_model, epochs, display_perf):
+def train_model(path_model, epochs, display_perf, data_dir):
     
     #conditions for the net 
     n_input = 784
@@ -111,12 +119,12 @@ def train_model(path_model, epochs, display_perf):
     np.random.seed(0)
 
     #generate data 
-    train_input, test_input, train_target, test_target = create_mnist_data(n_input)
+    train_input, test_input, train_target, test_target = create_mnist_data(n_input, data_dir)
 
     #create net and parameters of the model 
     model = Net(n_input, n_hidden, n_output)
     criterion = nn.CrossEntropyLoss()
-    mini_batch_size = 100
+    mini_batch_size = 129
     display_step = 5
     optimizer = optim.Adam(model.parameters(), lr=0.001) 
 
@@ -144,14 +152,14 @@ def train_model(path_model, epochs, display_perf):
             optimizer.step() #equivalent of the for loop update 
           
         #results for training
-        avg_loss_tr, avg_accuracy_tr = compute_performances(model, train_input, train_target, mini_batch_size, criterion)
+        avg_loss_tr, avg_accuracy_tr = compute_performances(model, train_input, train_target, 129, criterion)
         if e % display_step ==0:            
             print('Epoch: %02d' %(e), '--> train loss = ' + "{:.3f}".format(avg_loss_tr), ', train accuracy: ' + "{:.3f}".format(avg_accuracy_tr) + "%")
         losses_tr.append(avg_loss_tr)
         accuracies_tr.append(avg_accuracy_tr)
         
         #results for testing
-        avg_loss_te, avg_accuracy_te = compute_performances(model, test_input, test_target, mini_batch_size, criterion)
+        avg_loss_te, avg_accuracy_te = compute_performances(model, test_input, test_target, 111, criterion)
         if e % display_step ==0:            
             print('          --> test loss = ' + "{:.3f}".format(avg_loss_te), ', test accuracy: ' + "{:.3f}".format(avg_accuracy_te) + "%")
         losses_te.append(avg_loss_te)
