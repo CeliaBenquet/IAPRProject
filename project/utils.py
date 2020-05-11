@@ -54,6 +54,7 @@ from torch import Tensor
 from torch import nn
 from torch.nn import functional as F
 from torch import optim
+from scipy import ndimage
 
 def extract_data(filename, image_shape, image_number):
     with gzip.open(filename) as bytestream:
@@ -72,9 +73,29 @@ def extract_labels(filename, image_number):
     return labels
 
 
+def rotate(data, degrees):
+    data = data.copy()
+    for image in data[:]:
+        image = ndimage.rotate(image, degrees, reshape=False)
+    return data
+
 
 def augment_dataset(data, labels):
-    pass
+    rotated_data = [data]
+    rotated_labels = [labels]
+    for degrees in range(10, 360, 10):
+        rotated_data.append(rotate(data, degrees))
+        rotated_labels.append(labels)
+        print("Generated data with", degrees, "degrees")
+
+    print("Rotated data size ", len(rotated_data))
+    print("Rotated labels size ", len(rotated_labels))
+    data = np.concatenate(rotated_data)
+    labels = np.concatenate(rotated_labels)
+    print("data shape ", data.shape)
+
+    return data, labels
+
 
 
 def create_mnist_data(n_input, data_dir):
@@ -93,12 +114,22 @@ def create_mnist_data(n_input, data_dir):
     train_labels = extract_labels(train_labels_path, train_set_size)
     test_labels = extract_labels(test_labels_path, test_set_size)
 
+    train_images, train_labels = augment_dataset(train_images, train_labels)
+    test_images, test_labels = augment_dataset(test_images, test_labels)
+
+    print("------------")
+    print(train_labels.shape)   
+    print(test_labels.shape)   
+
     #transform to Tensor (PyTorch) and flattening
     train_images, train_labels = preprocessing(train_images,train_labels,n_input)
     test_images, test_labels = preprocessing(test_images,test_labels,n_input)
 
+
     print(train_images.size())
-    print(train_labels)
+    print(train_labels.size())
+    print(test_images.size())
+    print(test_labels.size())
 
     return train_images, test_images, train_labels, test_labels
 
@@ -124,7 +155,7 @@ def train_model(path_model, epochs, display_perf, data_dir):
     #create net and parameters of the model 
     model = Net(n_input, n_hidden, n_output)
     criterion = nn.CrossEntropyLoss()
-    mini_batch_size = 129
+    mini_batch_size = 838
     display_step = 5
     optimizer = optim.Adam(model.parameters(), lr=0.001) 
 
@@ -152,14 +183,14 @@ def train_model(path_model, epochs, display_perf, data_dir):
             optimizer.step() #equivalent of the for loop update 
           
         #results for training
-        avg_loss_tr, avg_accuracy_tr = compute_performances(model, train_input, train_target, 129, criterion)
+        avg_loss_tr, avg_accuracy_tr = compute_performances(model, train_input, train_target, 838, criterion)
         if e % display_step ==0:            
             print('Epoch: %02d' %(e), '--> train loss = ' + "{:.3f}".format(avg_loss_tr), ', train accuracy: ' + "{:.3f}".format(avg_accuracy_tr) + "%")
         losses_tr.append(avg_loss_tr)
         accuracies_tr.append(avg_accuracy_tr)
         
         #results for testing
-        avg_loss_te, avg_accuracy_te = compute_performances(model, test_input, test_target, 111, criterion)
+        avg_loss_te, avg_accuracy_te = compute_performances(model, test_input, test_target, 999, criterion)
         if e % display_step ==0:            
             print('          --> test loss = ' + "{:.3f}".format(avg_loss_te), ', test accuracy: ' + "{:.3f}".format(avg_accuracy_te) + "%")
         losses_te.append(avg_loss_te)
