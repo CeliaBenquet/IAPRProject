@@ -11,16 +11,23 @@ from torch import optim
 import os
 
 
+def evaluate_expression(symbols):
+    return 0
+
+
+
 def process_video(input_path):
     # Read the video from specified path
     cam = cv2.VideoCapture(input_path)
 
     currentframe = 0
-    cv2.namedWindow("video")
     cv2.namedWindow("bbs")
 
-    while(True):
-        # reading from source
+    all_centroids = []
+    all_patches = []
+    symbol_ids = []
+
+    while(True): # reading from source
         ret, frame = cam.read()
 
         if ret:
@@ -31,33 +38,46 @@ def process_video(input_path):
             arrowBbox = bounding_box(thresholdedArrow)
             arrowBbox = expandBbox(arrowBbox, 20)
 
-            cv2.rectangle(frame, arrowBbox[0:2], arrowBbox[2:4], (0, 0, 255))
+            robotCenter = get_center(arrowBbox)
 
             thresholded = threshold(normalized).astype('uint8') * 255
             bbs = [expandBbox(bb, 2) for bb in bounding_boxes(thresholded) if not isOverlapping(bb, arrowBbox)]
 
+            centroids = [get_center(b) for b in bbs]
+
             patches = extractPatches(thresholded, bbs)
             patches = normalizePatches(patches)
 
-          #  printPatches(patches)
+            if currentframe == 0:
+                all_centroids = centroids
+                all_patches = patches
+            elif len(patches) != len(all_centroids):
+                distances = [np.linalg.norm(c - robotCenter) for c in all_centroids]
+                min_distance_id = np.argmin(distances)
+                if len(symbol_ids) == 0 or min_distance_id != symbol_ids[-1]:
+                    symbol_ids.append(min_distance_id)
 
 
-            # TODO: Classify patches
+            cv2.rectangle(frame, arrowBbox[0:2], arrowBbox[2:4], (0, 0, 255))
 
-
-
-            cv2.imshow("video", thresholded)
             draw_bbs(frame, bbs)
 
             cv2.imshow("bbs", frame)
 
             cv2.waitKey()
 
-            # increasing counter so that it will
-            # show how many frames are created
             currentframe += 1
         else:
             break
+
+    #The expression is here
+    symbols = [all_patches[i] for i in symbol_ids]
+    printPatches(symbols)
+
+    expression_value = evaluate_expression(symbols)
+
+
+
 
     # Release all space and windows once done
     cam.release()

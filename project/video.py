@@ -90,8 +90,14 @@ def bounding_boxes(frame):
             img[bb[1]-5:bb[3]+5, bb[0]-5:bb[2]+5] = 0
             labels[bb[1]-5:bb[3]+5, bb[0]-5:bb[2]+5] = 0
 
-    return set(filtered_bb)
 
+    unique = []
+    [unique.append(item) for item in filtered_bb if item not in unique]
+
+    return unique
+
+def get_center(bbox):
+    return np.array([(bbox[0] + bbox[2]) // 2, (bbox[1] + bbox[3]) // 2])
 
 def draw_bbs(img, bbs):
     if len(img.shape) == 3 and img.shape[2] == 3:
@@ -153,15 +159,25 @@ def extractPatches(img, bboxes):
     return patches
 
 def normalizePatch(patch):
-    return _resize_pad_to_square_keep_aspect_ratio(patch, (28, 28))[0]
+    patches = _resize_pad_to_square_keep_aspect_ratio(patch, (28, 28))[0]
+    return patches
 
 def normalizePatches(patches):
-    return [normalizePatch(patch) for patch in patches]
+    patches = [normalizePatch(patch) for patch in patches]
+    patches = [(p > 100).astype('uint8') * 255 for p in patches]
+    return patches
 
 def printPatches(patches):
     f, ax = plt.subplots(1, len(patches))
     for i in range(len(patches)):
-        print(patches[i].shape)
         ax[i].imshow(patches[i], cmap='gray')
     plt.show()
+
+def printPatchesAll(a, b):
+    f, ax = plt.subplots(2, len(a))
+    for i in range(len(a)):
+        ax[0,i].imshow(a[i], cmap='gray')
+    for i in range(len(b)):
+        ax[1,i].imshow(b[i], cmap='jet')
+    plt.show(block=False)
 
