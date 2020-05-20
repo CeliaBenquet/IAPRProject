@@ -2,12 +2,19 @@ import gzip
 import numpy as np
 import matplotlib.pyplot as plt
 from Net import Net
+from CNNet import CNNet, CNNet2
 import torch 
 from torch import Tensor 
 from torch import nn
 from torch.nn import functional as F
 from torch import optim
 from scipy import ndimage
+import skimage.morphology
+import cv2
+import os
+import imgaug.augmenters as iaa
+from sklearn.model_selection import train_test_split
+import random
 
 def extract_data(filename, image_shape, image_number):
     with gzip.open(filename) as bytestream:
@@ -17,7 +24,6 @@ def extract_data(filename, image_shape, image_number):
         data = data.reshape(image_number, image_shape[0], image_shape[1])
     return data
 
-
 def extract_labels(filename, image_number):
     with gzip.open(filename) as bytestream:
         bytestream.read(8)
@@ -25,13 +31,11 @@ def extract_labels(filename, image_number):
         labels = np.frombuffer(buf, dtype=np.uint8).astype(np.int64)
     return labels
 
-
 def rotate(data, degrees):
     data = data.copy()
     for image in data[:]:
         image = ndimage.rotate(image, degrees, reshape=False)
     return data
-
 
 def augment_dataset(data, labels):
     rotated_data = [data]
@@ -46,15 +50,12 @@ def augment_dataset(data, labels):
     data = np.concatenate(rotated_data)
     labels = np.concatenate(rotated_labels)
     print("data shape ", data.shape)
-
     return data, labels
 
-
-
-def create_mnist_data(n_input, data_dir):
+def create_mnist_data(data_dir):
     image_shape = (28, 28)
-    train_set_size = 60000
-    test_set_size = 10000
+    train_set_size = 59999
+    test_set_size = 9957
 
     train_images_path = os.path.join(data_dir, 'train-images-idx3-ubyte.gz')
     train_labels_path = os.path.join(data_dir, 'train-labels-idx1-ubyte.gz')
@@ -67,48 +68,133 @@ def create_mnist_data(n_input, data_dir):
     train_labels = extract_labels(train_labels_path, train_set_size)
     test_labels = extract_labels(test_labels_path, test_set_size)
 
-    train_images, train_labels = augment_dataset(train_images, train_labels)
-    test_images, test_labels = augment_dataset(test_images, test_labels)
-
-    print("------------")
-    print(train_labels.shape)   
-    print(test_labels.shape)   
-
-    #transform to Tensor (PyTorch) and flattening
-    train_images, train_labels = preprocessing(train_images,train_labels,n_input)
-    test_images, test_labels = preprocessing(test_images,test_labels,n_input)
-
+    train_images, train_labels = preprocessing_mnist(train_images,train_labels)
+    test_images, test_labels = preprocessing_mnist(test_images,test_labels)
 
     print(train_images.size())
     print(train_labels.size())
     print(test_images.size())
     print(test_labels.size())
 
-    return train_images, test_images, train_labels, test_labels
+    return train_images[:,None,:,:], test_images[:,None,:,:], train_labels, test_labels
 
-
-
-def preprocessing(data, labels, n_input): 
+def preprocessing_mnist(data, labels): 
     data = data[labels != 9]
     labels = labels[labels != 9]
-    return (torch.from_numpy(data).view(-1, n_input), torch.from_numpy(labels))
+    return (torch.from_numpy(data), torch.from_numpy(labels))
 
-def train_model(path_model, epochs, display_perf, data_dir):
+def chooseImage(data, labels, label):
+    #label: the class
+    images_idx = [i for i, e in enumerate(labels) if e == label]
+    return data[random.choice(images_idx)]
+
+
+def augment_data_imgaug(data, labels, nb_op):
+
+    data_aug, labels_aug = [], []
+
+    #define the possible transformations 
+    seq = iaa.Sequential([
+    iaa.Fliplr(0.5), # horizontal flips
+    iaa.Crop(percent=(0, 0.1)), # random crops
+    iaa.LinearContrast((0.75, 1.5)), # strengthen or weaken the contrast in each image
+    iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.5), # Add gaussian noise.
+    iaa.Multiply((0.8, 1.2), per_channel=0.2), # Make some images brighter and some darker.
+    iaa.Affine(   # Apply affine transformations to each image.
+        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        rotate=(-90, 90),
+        shear=(-8, 8) 
+    )], random_order=True) # apply augmenters in random order
+
+    #apply possible transformation to each class 
+    sample_per_class=400  #nb images for training/testing
+
+    for batch_idx in range(int(sample_per_class)): #nb of sample per class 
+        for i in range(nb_op): 
+            data_aug.append(seq.augment_images(chooseImage(data, labels, i))) #add one image
+            labels_aug.append(i) #add the corresponding label
+
+    return data_aug, labels_aug
+
+
+def create_operators_data(data_dir):
+    nb_op=5
+    
+    #get the data
+    data,labels = [],[]
+    for i in range(nb_op) :
+
+    #TODO: threshold otsu
+
+
+        #image from the training video (don't have it for minus)
+        img_path_main = os.path.join(data_dir, str(i), 'main.jpg')
+        if os.path.isfile(img_path_main):
+            temp_img_main = cv2.imread(img_path_main)
+            
+            temp_img_main = cv2.cvtColor(temp_img_main, cv2.COLOR_BGR2GRAY)
+            labels.append(i)
+            data.append(temp_img_main) 
+
+        #image from original operators 
+        img_path_or = os.path.join(data_dir, str(i), 'original.jpg')
+        temp_img = cv2.imread(img_path_or)
+        temp_img = cv2.cvtColor(temp_img, cv2.COLOR_BGR2GRAY)
+        labels.append(i)
+        data.append(temp_img) 
+
+    #augment the data
+    print("Augmentation of the data for the operators...")
+    data_aug, labels_aug = augment_data_imgaug(data, labels, nb_op)
+
+    #split dataset in train and test 
+    train_images, test_images, train_labels, test_labels = train_test_split(data_aug, labels_aug, \
+                                                    test_size=0.3, random_state=42)
+
+    #transform to Tensor (PyTorch) and flattening
+    train_images, train_labels = preprocessing_op(train_images,train_labels)
+    test_images, test_labels = preprocessing_op(test_images,test_labels)
+
+    print(train_images.size())
+    print(train_labels.size())
+    print(test_images.size())
+    print(test_labels.size())
+
+    return train_images[:,None,:,:], test_images[:,None,:,:], train_labels, test_labels
+
+
+def preprocessing_op(data, labels): 
+    data_resized=[]
+    for image in data: 
+        data_resized.append(cv2.resize(image, (28,28), interpolation = cv2.INTER_AREA))
+    return (torch.FloatTensor(data_resized), torch.LongTensor(labels)) 
+
+
+def train_model(path_model, epochs, display_perf, data_dir, digits=True):
+
+    ## TODO: keep the best model on all the epochs
     
     #conditions for the net 
-    n_input = 784
-    n_hidden = 100
-    n_output = 10
     torch.manual_seed(0)
     np.random.seed(0)
 
     #generate data 
-    train_input, test_input, train_target, test_target = create_mnist_data(n_input, data_dir)
+    if digits:
+        train_input, test_input, train_target, test_target = create_mnist_data(data_dir)
+        n_output = 9
+        print("Start training model on MNIST dataset...")
+
+    else: 
+        train_input, test_input, train_target, test_target = create_operators_data(data_dir)
+        n_output = 5
+        print("Start training model on operators dataset...")
 
     #create net and parameters of the model 
-    model = Net(n_input, n_hidden, n_output)
+    model = CNNet2(n_output)
+    #model = Net(n_input, n_hidden, n_output)
     criterion = nn.CrossEntropyLoss()
-    mini_batch_size = 838
+    mini_batch_size = 50   #838
     display_step = 5
     optimizer = optim.Adam(model.parameters(), lr=0.001) 
 
@@ -118,7 +204,7 @@ def train_model(path_model, epochs, display_perf, data_dir):
     losses_te = []
     accuracies_te = []
     
-    print("Start training model on MNIST dataset...")
+    best_acc=0
     
     model.train()
     
@@ -127,46 +213,54 @@ def train_model(path_model, epochs, display_perf, data_dir):
         # We do this with mini-batches
         for b in range(0, train_input.size(0), mini_batch_size):
             optimizer.zero_grad()
-            
+
             output = model(train_input.narrow(0, b, mini_batch_size))
 
             loss = criterion(output, train_target.narrow(0, b, mini_batch_size))            
             loss.backward()
             
-            optimizer.step() #equivalent of the for loop update 
+            optimizer.step()
           
         #results for training
-        avg_loss_tr, avg_accuracy_tr = compute_performances(model, train_input, train_target, 838, criterion)
+        avg_loss_tr, avg_accuracy_tr = compute_performances(model, train_input, train_target, mini_batch_size, criterion)
         if e % display_step ==0:            
             print('Epoch: %02d' %(e), '--> train loss = ' + "{:.3f}".format(avg_loss_tr), ', train accuracy: ' + "{:.3f}".format(avg_accuracy_tr) + "%")
         losses_tr.append(avg_loss_tr)
         accuracies_tr.append(avg_accuracy_tr)
         
         #results for testing
-        avg_loss_te, avg_accuracy_te = compute_performances(model, test_input, test_target, 999, criterion)
+        avg_loss_te, avg_accuracy_te = compute_performances(model, test_input, test_target, mini_batch_size, criterion)
         if e % display_step ==0:            
             print('          --> test loss = ' + "{:.3f}".format(avg_loss_te), ', test accuracy: ' + "{:.3f}".format(avg_accuracy_te) + "%")
         losses_te.append(avg_loss_te)
         accuracies_te.append(avg_accuracy_te)
 
+        #keep best model 
+        if avg_accuracy_te > best_acc: 
+            best_model=model.state_dict()
+            best_acc=avg_accuracy_te
+
     if display_perf:   
+        #print best model 
+        print('Best accuracy on test: {}'.format(best_acc))
         # plot the accuracy and loss
+        x_axis=range(0,50,5)
         plt.figure(figsize = (20,10))
         plt.subplot(221)
         plt.plot(range(epochs), losses_tr, color='r')
-        plt.xticks([0, 5, 10, 15, 20, 25])
+        plt.xticks(x_axis)
         plt.title("Average Loss at training")
         plt.subplot(222)
         plt.plot(range(epochs), accuracies_tr)
-        plt.xticks([0, 5, 10, 15, 20, 25])
+        plt.xticks(x_axis)
         plt.title("Accuracy at training (in %)")
         plt.subplot(223)
         plt.plot(range(epochs), losses_te, color='r')
-        plt.xticks([0, 5, 10, 15, 20, 25])
+        plt.xticks(x_axis)
         plt.title("Average Loss at testing")
         plt.subplot(224)
         plt.plot(range(epochs), accuracies_te)
-        plt.xticks([0, 5, 10, 15, 20, 25])
+        plt.xticks(x_axis)
         plt.title("Accuracy at testing (in %)")
         plt.show()
 
@@ -181,8 +275,8 @@ def train_model(path_model, epochs, display_perf, data_dir):
     except OSError: 
         print ('Error: Creating directory for trained model') 
 
-
-    torch.save(model.state_dict(),path_model)    
+    #save model for epoch that gives best accuracy on test
+    torch.save(best_model,path_model)    
     print("Training done... the model was saved.")
 
 
@@ -208,3 +302,43 @@ def compute_performances(model, inputs, labels, mini_batch_size, criterion):
     
     return avg_loss, avg_acc
     
+
+def evaluate_expression(symbols):
+    #we know that first is a digits and second is an operator and so forth 
+
+    expression_value=""
+    for symb in symbols: 
+        if (not expression_value) or (not expression_value[-1].isdigit()) : #if first character or last one was operator
+            # classification as a digit 
+            if os.path.exists(args.model_digits):
+                model=CNNet(9)
+                model.load_state_dict(torch.load(args.model_digits))
+                model.eval()
+                output = model(symb)
+                char=str(output[0])
+        else: #last character was a digits
+            # classification as an operator 
+            if os.path.exists(args.model_operators):
+                model=CNNet(5)
+                model.load_state_dict(torch.load(args.model_operators))
+                model.eval()
+                output = model(symb)
+                char=opToStr(output[0])
+
+        #add the charactere to the equation
+        expression_value+=char
+
+    return expression_value
+
+def opToStr(op_int): 
+    if op_int == 0: 
+        op_str = '='
+    elif op_int == 1: 
+        op_str = '*'
+    elif op_int == 2: 
+        op_str = '/'
+    elif op_int == 3: 
+        op_str = '+'
+    elif op_int == 4: 
+        op_str = '-'
+    return op_str

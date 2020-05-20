@@ -1,7 +1,6 @@
 import argparse
-from utils import *
+from utils import train_model, evaluate_expression
 from video import *
-from Net import Net
 import torch 
 from torch import Tensor 
 from torch import nn
@@ -9,11 +8,6 @@ from torch.nn import functional as F
 from torch import optim
 
 import os
-
-
-def evaluate_expression(symbols):
-    return 0
-
 
 
 def process_video(input_path):
@@ -72,17 +66,16 @@ def process_video(input_path):
 
     #The expression is here
     symbols = [all_patches[i] for i in symbol_ids]
-    printPatches(symbols)
+    #printPatches(symbols)
 
-    expression_value = evaluate_expression(symbols)
+    print(symbols)
+    expression_value = evaluate_expression(symbols) 
 
-
-
+    print(expression_value)
 
     # Release all space and windows once done
     cam.release()
     cv2.destroyAllWindows()
-
 
 
 
@@ -91,12 +84,14 @@ if __name__ == '__main__':
     data_base_path = os.path.join(os.pardir, 'data')
     data_folder = 'lab-03-data'
     data_part2_folder = os.path.join(data_base_path, data_folder, 'part2')
+    data_op_folder = os.path.join(data_base_path, 'data_operators')
+
 
 
     parser = argparse.ArgumentParser(description='Project 1 - Classification.')
 
     parser.add_argument('--input',
-                        type = str, default = "./data/robot_parcours_1.avi",
+                        type = str, default = './data/robot_parcours_1.avi',
                         help = 'Path to input file')
 
     parser.add_argument('--output',
@@ -106,10 +101,6 @@ if __name__ == '__main__':
     parser.add_argument('--training',
                         action = 'store_true', default = False,
                         help = 'Train the model for digits recognition on the MNIST dataset')
-
-    parser.add_argument('--eval',
-                        action = 'store_true', default = False,
-                        help = 'Evaluate the model')
 
     parser.add_argument('--run',
                         action = 'store_true', default = True,
@@ -122,9 +113,13 @@ if __name__ == '__main__':
     parser.add_argument('--model_digits',
                         type = str, default = 'model/model_MNIST.pt',
                         help = 'Path to trained model for digits')
+                        
+    parser.add_argument('--model_operators',
+                        type = str, default = 'model/model_operators.pt',
+                        help = 'Path to trained model for operators')
 
     parser.add_argument('--epochs',
-                        type = int, default = 25,
+                        type = int, default = 50,
                         help = 'Number of epochs for the training (default:25)')
 
     parser.add_argument('--mnist_data',
@@ -133,20 +128,13 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    ## create images from the video &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-    ## generate and train model for digits recognition &&&&&&&&&&&&&&&&&&&&&&&&&&
+    ## generate and train model for digits recognition 
     if args.training: 
-        #train the parameters of the model on the dataset
-        train_model(args.model_digits, args.epochs, args.display_training, args.mnist_data)
-
-    if args.eval:
-        if os.path.exists(args.model_digits):
-            model=Net()
-            model.load_state_dict(torch.load(args.model_digits))
-            model.eval()
-            print('hello you made it here')
-            #use output=model(input) to use the model 
+        #train the parameters of the model for digits 
+        #train_model(args.model_digits, args.epochs, args.display_training, args.mnist_data, digits=True)
+        #train the parameters of the model for operators 
+        train_model(args.model_operators, args.epochs, args.display_training, data_op_folder, digits=False)
 
     if args.run:
         process_video(args.input)
