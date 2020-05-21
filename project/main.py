@@ -10,12 +10,11 @@ from torch import optim
 import os
 
 
-def process_video(input_path):
+def process_video(args):
     # Read the video from specified path
-    cam = cv2.VideoCapture(input_path)
-
+    cam = cv2.VideoCapture(args.input)
     currentframe = 0
-    cv2.namedWindow("bbs")
+    #cv2.namedWindow("bbs")
 
     all_centroids = []
     all_patches = []
@@ -54,11 +53,11 @@ def process_video(input_path):
 
             cv2.rectangle(frame, arrowBbox[0:2], arrowBbox[2:4], (0, 0, 255))
 
-            draw_bbs(frame, bbs)
+            #draw_bbs(frame, bbs)
 
-            cv2.imshow("bbs", frame)
+            #cv2.imshow("bbs", frame)
 
-            cv2.waitKey()
+            #cv2.waitKey()
 
             currentframe += 1
         else:
@@ -66,12 +65,11 @@ def process_video(input_path):
 
     #The expression is here
     symbols = [all_patches[i] for i in symbol_ids]
-    #printPatches(symbols)
+    printPatches(symbols)
 
-    print(symbols)
-    expression_value = evaluate_expression(symbols) 
+    expression_value = evaluate_expression(symbols, args) 
 
-    print(expression_value)
+    print('exp', expression_value)
 
     # Release all space and windows once done
     cam.release()
@@ -85,13 +83,12 @@ if __name__ == '__main__':
     data_folder = 'lab-03-data'
     data_part2_folder = os.path.join(data_base_path, data_folder, 'part2')
     data_op_folder = os.path.join(data_base_path, 'data_operators')
-
-
+    input_path=os.path.join(data_base_path,'robot_parcours_1.avi')
 
     parser = argparse.ArgumentParser(description='Project 1 - Classification.')
 
     parser.add_argument('--input',
-                        type = str, default = './data/robot_parcours_1.avi',
+                        type = str, default = input_path,
                         help = 'Path to input file')
 
     parser.add_argument('--output',
@@ -119,7 +116,7 @@ if __name__ == '__main__':
                         help = 'Path to trained model for operators')
 
     parser.add_argument('--epochs',
-                        type = int, default = 50,
+                        type = int, default = 25,
                         help = 'Number of epochs for the training (default:25)')
 
     parser.add_argument('--mnist_data',
@@ -129,13 +126,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
 
+
     ## generate and train model for digits recognition 
     if args.training: 
         #train the parameters of the model for digits 
-        #train_model(args.model_digits, args.epochs, args.display_training, args.mnist_data, digits=True)
+        train_model(args.model_digits, args.epochs, args.display_training, args.mnist_data, digits=True)
         #train the parameters of the model for operators 
-        train_model(args.model_operators, args.epochs, args.display_training, data_op_folder, digits=False)
+        #train_model(args.model_operators, args.epochs, args.display_training, data_op_folder, digits=False)
 
     if args.run:
-        process_video(args.input)
+        #process_video(args.input)
+        process_video(args)
 
