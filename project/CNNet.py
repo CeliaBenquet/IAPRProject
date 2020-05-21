@@ -5,7 +5,7 @@ from torch.nn import functional as F
 from torch import optim
 
 
-#define the net 
+#define CNN 
 class CNNet(nn.Module):
     def __init__(self, n_output):
         super(CNNet, self).__init__()
@@ -14,7 +14,7 @@ class CNNet(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, kernel_size=5)
         self.bn2 = nn.BatchNorm2d(64)
         self.fc1 = nn.Linear(256, 200)
-        self.fc2 = nn.Linear(200, n_output)
+        self.fc2 = nn.Linear(200, n_output) #depends on the model
         
 
     def forward(self, x):
@@ -24,7 +24,7 @@ class CNNet(nn.Module):
         x = self.fc2(x)
         return x
 
-
+# long to train 
 class CNNet2(nn.Module):
     def __init__(self, n_output):
         super(CNNet2, self).__init__()

@@ -16,6 +16,7 @@ import imgaug.augmenters as iaa
 from sklearn.model_selection import train_test_split
 import random
 from skimage.filters import threshold_otsu
+import operator
 
 def extract_data(filename, image_shape, image_number):
     with gzip.open(filename) as bytestream:
@@ -56,8 +57,8 @@ def augment_dataset(data, labels):
 def create_mnist_data(data_dir, mini_batch_size):
     image_shape = (28, 28)
     #initial dataset size, will increase with augmentation
-    train_set_size = 100
-    test_set_size = 30
+    train_set_size = 500
+    test_set_size = 150
 
     #path to dataset 
     train_images_path = os.path.join(data_dir, 'train-images-idx3-ubyte.gz')
@@ -119,9 +120,9 @@ def augment_data_imgaug(data, labels, nb_op):
     seq = iaa.Sequential([
     iaa.Fliplr(0.5), # horizontal flips
     iaa.Crop(percent=(0, 0.1)), # random crops
-    #iaa.LinearContrast((0.75, 1.5)), # strengthen or weaken the contrast in each image
+    iaa.LinearContrast((0.75, 1.5)), # strengthen or weaken the contrast in each image
     iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.5), # Add gaussian noise.
-    #iaa.Multiply((0.8, 1.2), per_channel=0.2), # Make some images brighter and some darker.
+    iaa.Multiply((0.8, 1.2), per_channel=0.2), # Make some images brighter and some darker.
     iaa.Affine(   # Apply affine transformations to each image.
         scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
         translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
@@ -130,7 +131,7 @@ def augment_data_imgaug(data, labels, nb_op):
     )], random_order=True) # apply augmenters in random order
 
     #apply possible transformation to each class 
-    sample_per_class=1000  #nb images for training/testing
+    sample_per_class=3000  #nb images for training/testing
 
     for batch_idx in range(int(sample_per_class)): #nb of sample per class 
         for i in range(nb_op): 
@@ -293,7 +294,7 @@ def train_model(path_model, epochs, display_perf, data_dir, digits=True):
         plt.title("Accuracy at testing (in %)")
         plt.show()
 
-    #save model
+    # save model
     try: 
     
         # creating a folder named data 
@@ -304,7 +305,7 @@ def train_model(path_model, epochs, display_perf, data_dir, digits=True):
     except OSError: 
         print ('Error: Creating directory for trained model') 
 
-    #save model for epoch that gives best accuracy on test
+    # save model for epoch that gives best accuracy on test
     torch.save(best_model,path_model)    
     print("Training done... the model was saved.")
 
@@ -317,7 +318,7 @@ def compute_performances(model, inputs, labels, mini_batch_size, criterion):
     correct=0.0
     
     for b in range(0, inputs.size(0), mini_batch_size):
-        #get the outputs from the trained model
+        # get the outputs from the trained model
         output = model(inputs.narrow(0, b, mini_batch_size)) #should have done it by mini batches 
 
         loss = criterion(output, labels.narrow(0, b, mini_batch_size))
@@ -333,7 +334,7 @@ def compute_performances(model, inputs, labels, mini_batch_size, criterion):
     
 
 def evaluate_expression(symbols, args):
-    #we know that first is a digits and second is an operator and so forth 
+    # we know that first is a digits and second is an operator and so forth 
     expression_value=""
 
     for symb in symbols: 
@@ -349,7 +350,7 @@ def evaluate_expression(symbols, args):
                 predicted = torch.argmax(output, 1)
                 char=str(int(predicted))
         
-        else: #last character was a digits
+        else: # last character was a digits
             # classification as an operator 
             if os.path.exists(args.model_operators):
                 model=CNNet(5)
@@ -360,10 +361,37 @@ def evaluate_expression(symbols, args):
                 predicted = torch.argmax(output, 1)
                 char=opToStr(int(predicted))
 
-        #add the charactere to the equation
+        # add the charactere to the equation
         expression_value+=char
 
-    return expression_value
+    print('Equation: ', expression_value)
+
+    result = calculate_equation(expression_value)
+
+    return result 
+
+
+def calculate_equation(expression):
+    result = expression[0]
+
+    for i in range(1,len(expression)-1,2): 
+        oper=expression[i]
+        digit=expression[i+1]
+        result = eval_binary_expr(result,oper,digit)
+
+    return result 
+
+
+def eval_binary_expr(op1, oper, op2,
+                     get_operator_fn={
+                         '+' : operator.add,
+                         '-' : operator.sub,
+                         '*' : operator.mul,
+                         '/' : operator.truediv,
+                         }.get):
+    op1,op2 = int(op1), int(op2)
+    return get_operator_fn(oper)(op1, op2)
+
 
 def preprocessing_symb(symbol):
     symbol = torch.FloatTensor(thresholding(symbol))

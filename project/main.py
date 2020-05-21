@@ -67,9 +67,8 @@ def process_video(args):
     symbols = [all_patches[i] for i in symbol_ids]
     printPatches(symbols)
 
-    expression_value = evaluate_expression(symbols, args) 
-
-    print('exp', expression_value)
+    result = evaluate_expression(symbols, args) 
+    print('Result = ', result)
 
     # Release all space and windows once done
     cam.release()
@@ -95,9 +94,13 @@ if __name__ == '__main__':
                         type = str, default = None,
                         help = 'Path to output file')
 
-    parser.add_argument('--training',
+    parser.add_argument('--training_digits',
                         action = 'store_true', default = False,
                         help = 'Train the model for digits recognition on the MNIST dataset')
+
+    parser.add_argument('--training_operators',
+                        action = 'store_true', default = False,
+                        help = 'Train the model for operators recognition')
 
     parser.add_argument('--run',
                         action = 'store_true', default = True,
@@ -128,11 +131,13 @@ if __name__ == '__main__':
 
 
     ## generate and train model for digits recognition 
-    if args.training: 
+    if args.training_digits: 
         #train the parameters of the model for digits 
         train_model(args.model_digits, args.epochs, args.display_training, args.mnist_data, digits=True)
+        
+    if args.training_operators: 
         #train the parameters of the model for operators 
-        #train_model(args.model_operators, args.epochs, args.display_training, data_op_folder, digits=False)
+        train_model(args.model_operators, args.epochs, args.display_training, data_op_folder, digits=False)
 
     if args.run:
         #process_video(args.input)
