@@ -110,8 +110,9 @@ def preprocessing_mnist(data, labels, mini_batch_size):
 def chooseImage(data, labels, label):
     #label: the class
     #choose randomly between image from video original image 
-    return data[random.choice([labels==label])]
-
+    #img = data[random.choice([labels==label])]
+    images_idx = [i for i, e in enumerate(labels) if e == label]
+    return data[random.choice(images_idx)]
 
 def augment_data_imgaug(data, labels, nb_op):
     data_aug, labels_aug = [], []
@@ -131,7 +132,7 @@ def augment_data_imgaug(data, labels, nb_op):
     )], random_order=True) # apply augmenters in random order
 
     #apply possible transformation to each class 
-    sample_per_class=3000  #nb images for training/testing
+    sample_per_class=700  #nb images for training/testing
 
     for batch_idx in range(int(sample_per_class)): #nb of sample per class 
         for i in range(nb_op): 
@@ -152,7 +153,6 @@ def create_operators_data(data_dir):
         img_path_main = os.path.join(data_dir, str(i), 'main.jpg')
         if os.path.isfile(img_path_main):
             temp_img_main = cv2.imread(img_path_main)
-            
             temp_img_main = thresholding(cv2.cvtColor(temp_img_main, cv2.COLOR_BGR2GRAY))
             labels.append(i)
             data.append(temp_img_main)
@@ -163,15 +163,15 @@ def create_operators_data(data_dir):
 
         #image from original operators 
         img_path_or = os.path.join(data_dir, str(i), 'original.jpg')
-        temp_img = cv2.imread(img_path_or)
-        temp_img = thresholding(cv2.cvtColor(temp_img, cv2.COLOR_BGR2GRAY))
+        if os.path.isfile(img_path_or):
+            temp_img = cv2.imread(img_path_or)
+            temp_img = thresholding(cv2.cvtColor(temp_img, cv2.COLOR_BGR2GRAY))
+            labels.append(i)
+            data.append(temp_img) 
         
         #cv2.imshow('img', temp_img)
         #cv2.waitKey(0)
-        cv2.destroyAllWindows()
-
-        labels.append(i)
-        data.append(temp_img) 
+        #cv2.destroyAllWindows()
 
     #augment the data
     print("Augmentation of the data for the operators...")
@@ -347,7 +347,7 @@ def evaluate_expression(symbols, args):
                 model.eval()
                 output = model(preprocessing_symb(symb))
                 #print(output)
-                predicted = torch.argmax(output, 1)
+                predicted = torch.argmax(output)
                 char=str(int(predicted))
         
         else: # last character was a digits
@@ -358,7 +358,7 @@ def evaluate_expression(symbols, args):
                 model.eval()
                 preprocessing_symb(symb)
                 output = model(preprocessing_symb(symb))
-                predicted = torch.argmax(output, 1)
+                predicted = torch.argmax(output)
                 char=opToStr(int(predicted))
 
         # add the charactere to the equation
@@ -377,10 +377,11 @@ def calculate_equation(expression):
     for i in range(1,len(expression)-1,2): 
         oper=expression[i]
         digit=expression[i+1]
+        if oper=='=' and i!=expression[-1]:
+            raise NameError('Operator \'=\' was detected before the end of the expression')
         result = eval_binary_expr(result,oper,digit)
 
     return result 
-
 
 def eval_binary_expr(op1, oper, op2,
                      get_operator_fn={
@@ -389,6 +390,7 @@ def eval_binary_expr(op1, oper, op2,
                          '*' : operator.mul,
                          '/' : operator.truediv,
                          }.get):
+    # calculate result for binary expression 
     op1,op2 = int(op1), int(op2)
     return get_operator_fn(oper)(op1, op2)
 
@@ -416,3 +418,55 @@ def opToStr(op_int):
     elif op_int == 4: 
         op_str = '-'
     return op_str
+
+
+def preprocessing_test(symbol):
+    symbol = torch.FloatTensor(symbol)
+    return symbol[None,None,:,:]
+
+def test_model(args, digits=True):
+    if digits:
+        train_input, test_input, train_target, test_target = create_mnist_data(args.mnist_data, 50)
+        n_output = 9
+        model=CNNet(9)
+        model.load_state_dict(torch.load(args.model_digits))
+        model.eval()
+
+    else: 
+        train_input, test_input, train_target, test_target = create_operators_data(args.operators_data)
+        n_output = 5
+        model=CNNet(5)
+        model.load_state_dict(torch.load(args.model_operators))
+        model.eval()
+
+   # obtain one batch of test images
+    nb_im=20
+    prng = np.random.RandomState(seed=123456789)  # seed to always re-draw the same distribution
+    plt_ind = prng.randint(low=0, high=test_input.shape[0], size=nb_im)
+
+    images=[]
+    labels=[]
+    for i in plt_ind:
+        images.append(test_input[i])
+        labels.append(test_target[i])
+
+    #images, labels = np.array(images),np.array(labels)
+    images, labels = torch.stack(images), torch.stack(labels)
+    print(images.size())
+
+    #images_,labels_=preprocessing(images, labels)
+
+    # get sample outputs
+    output = model(images.float())
+    # convert output probabilities to predicted class
+    preds = torch.argmax(output, 1)
+
+
+    # plot the images in the batch, along with predicted and true labels
+    images=images.numpy()
+    fig = plt.figure(figsize=(25, 4))
+    for idx in range(nb_im):
+        ax = fig.add_subplot(nb_im/10, 10, idx+1, xticks=[], yticks=[])
+        ax.imshow(images[idx], cmap='gray')
+        ax.set_title("{} ({})".format(str(preds[idx].item()), str(labels[idx].item())),
+                    color=("green" if preds[idx]==labels[idx] else "red"))

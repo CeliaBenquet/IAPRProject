@@ -1,5 +1,5 @@
 import argparse
-from utils import train_model, evaluate_expression
+from utils import train_model, evaluate_expression, test_model
 from video import *
 import torch 
 from torch import Tensor 
@@ -67,6 +67,7 @@ def process_video(args):
     symbols = [all_patches[i] for i in symbol_ids]
     printPatches(symbols)
 
+    #classify symbol
     result = evaluate_expression(symbols, args) 
     print('Result = ', result)
 
@@ -119,12 +120,16 @@ if __name__ == '__main__':
                         help = 'Path to trained model for operators')
 
     parser.add_argument('--epochs',
-                        type = int, default = 25,
+                        type = int, default = 50,
                         help = 'Number of epochs for the training (default:25)')
 
     parser.add_argument('--mnist_data',
                         type = str, default = data_part2_folder,
                         help = 'Path to the MNIST data')
+
+    parser.add_argument('--operators_data',
+                        type = str, default = data_op_folder,
+                        help = 'Path to the operators images')
 
     args = parser.parse_args()
 
@@ -137,9 +142,11 @@ if __name__ == '__main__':
         
     if args.training_operators: 
         #train the parameters of the model for operators 
-        train_model(args.model_operators, args.epochs, args.display_training, data_op_folder, digits=False)
+        train_model(args.model_operators, args.epochs, args.display_training, args.operators_data, digits=False)
 
     if args.run:
         #process_video(args.input)
+        #test_model(args, digits=False)
         process_video(args)
+        
 
