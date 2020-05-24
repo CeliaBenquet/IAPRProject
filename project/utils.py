@@ -323,7 +323,7 @@ def compute_performances(model, inputs, labels, mini_batch_size, criterion):
     return avg_loss, avg_acc
     
 
-def evaluate_expression(symbols, args, show=False, rotation=False):
+def evaluate_expression(symbols, args, rotation=False, show=False):
     # we know that first is a digits and second is an operator and so forth 
     expression_value=""
     preds=[]

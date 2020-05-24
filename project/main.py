@@ -138,6 +138,10 @@ if __name__ == '__main__':
     parser.add_argument('--operators_data',
                         type = str, default = data_op_folder,
                         help = 'Path to the operators images')
+                        
+    parser.add_argument('--rotation',
+                        action = 'store_true', default = False,
+                        help = 'Uses model where digits rotation are taken into account')
 
     args = parser.parse_args()
 
@@ -160,6 +164,6 @@ if __name__ == '__main__':
         #process_video(args.input)
         #test_model(args,digits=False)
         #test_model(args,digits=True)
-        process_video(args)
+        process_video(args, rotation=args.rotation)
         
 
