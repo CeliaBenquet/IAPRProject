@@ -1,5 +1,5 @@
 import argparse
-from utils import train_model, evaluate_expression, test_model
+from utils import train_model, evaluate_expression, test_model, calculate_equation
 from video import *
 import torch 
 from torch import Tensor 
@@ -14,7 +14,7 @@ def process_video(args):
     # Read the video from specified path
     cam = cv2.VideoCapture(args.input)
     currentframe = 0
-    #cv2.namedWindow("bbs")
+    cv2.namedWindow("bbs")
 
     all_centroids = []
     all_patches = []
@@ -51,25 +51,26 @@ def process_video(args):
                     symbol_ids.append(min_distance_id)
 
 
+            symbols = [all_patches[i] for i in symbol_ids]
+            expression_value = evaluate_expression(symbols, args)
+
+            if len(expression_value) > 0 and expression_value[-1] == '=':
+                expression_value = evaluate_expression(symbols, args)
+                result = calculate_equation(expression_value)
+                expression_value += str(result)
+
+
+            draw_bbs(frame, bbs)
             cv2.rectangle(frame, arrowBbox[0:2], arrowBbox[2:4], (0, 0, 255))
+            draw_expression(frame, expression_value)
 
-            #draw_bbs(frame, bbs)
 
-            #cv2.imshow("bbs", frame)
-
-            #cv2.waitKey()
+            cv2.imshow("bbs", frame)
+            cv2.waitKey()
 
             currentframe += 1
         else:
             break
-
-    #The expression is here
-    symbols = [all_patches[i] for i in symbol_ids]
-    #printPatches(symbols)
-
-    #classify symbol
-    result = evaluate_expression(symbols, args) 
-    print('Result = ', result)
 
     # Release all space and windows once done
     cam.release()

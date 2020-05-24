@@ -181,3 +181,6 @@ def printPatchesAll(a, b):
         ax[1,i].imshow(b[i], cmap='jet')
     plt.show(block=False)
 
+def draw_expression(frame, expression):
+    cv2.putText(frame, "Expression: " + expression, (100, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,255,255), 2)
+

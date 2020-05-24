@@ -322,7 +322,7 @@ def compute_performances(model, inputs, labels, mini_batch_size, criterion):
     return avg_loss, avg_acc
     
 
-def evaluate_expression(symbols, args):
+def evaluate_expression(symbols, args, show=False):
     # we know that first is a digits and second is an operator and so forth 
     expression_value=""
     preds=[]
@@ -355,18 +355,17 @@ def evaluate_expression(symbols, args):
         # add the charactere to the equation
         expression_value+=char
     
-    fig = plt.figure(figsize=(25, 4))
-    for idx in range(len(symbols)):
-        ax = fig.add_subplot(1, 8, idx+1, xticks=[], yticks=[])
-        ax.imshow(symbols[idx], cmap='gray')
-        ax.set_title("{} ({})".format(str(preds[idx].item()), str(labels[idx])),
-                    color=("green" if preds[idx]==labels[idx] else "red"))
-    plt.show()
+    if show:
+        fig = plt.figure(figsize=(25, 4))
+        for idx in range(len(symbols)):
+            ax = fig.add_subplot(1, 8, idx+1, xticks=[], yticks=[])
+            ax.imshow(symbols[idx], cmap='gray')
+            ax.set_title("{} ({})".format(str(preds[idx].item()), str(labels[idx])),
+                        color=("green" if preds[idx]==labels[idx] else "red"))
+        plt.show()
 
-    print('Equation: ', expression_value)
-    result = calculate_equation(expression_value)
+    return expression_value
 
-    return result
 
 def calculate_equation(expression):
     result = expression[0]
