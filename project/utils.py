@@ -18,6 +18,7 @@ import random
 from skimage.filters import threshold_otsu
 import operator
 
+
 def extract_data(filename, image_shape, image_number):
     with gzip.open(filename) as bytestream:
         bytestream.read(16)
@@ -39,23 +40,25 @@ def rotate(data, degrees):
         image = ndimage.rotate(image, degrees, reshape=False)
     return data
 
-def augment_dataset(data, labels):
+def augment_dataset(data, labels, rotation):
     rotated_data = [data]
     rotated_labels = [labels]
-    for degrees in range(10, 360, 10):
-        rotated_data.append(rotate(data, degrees))
-        rotated_labels.append(labels)
+    if rotation:
+        print("Augmentation of MNIST dataset to be resistant to rotation...")
+        for degrees in range(10, 360, 10):
+            rotated_data.append(rotate(data, degrees))
+            rotated_labels.append(labels)
 
     data = np.concatenate(rotated_data)
     labels = np.concatenate(rotated_labels)
 
     return data, labels
 
-def create_mnist_data(data_dir, mini_batch_size):
+def create_mnist_data(data_dir, mini_batch_size, rotation):
     image_shape = (28, 28)
     #initial dataset size, will increase with augmentation
-    train_set_size = 500
-    test_set_size = 150
+    train_set_size = 5000
+    test_set_size = 1500
 
     #path to dataset 
     train_images_path = os.path.join(data_dir, 'train-images-idx3-ubyte.gz')
@@ -64,27 +67,25 @@ def create_mnist_data(data_dir, mini_batch_size):
     test_labels_path = os.path.join(data_dir, 't10k-labels-idx1-ubyte.gz')
 
     #extract data and labels
+    print("Extraction of MNIST dataset")
     train_images = extract_data(train_images_path, image_shape, train_set_size)
     test_images = extract_data(test_images_path, image_shape, test_set_size)
     train_labels = extract_labels(train_labels_path, train_set_size)
     test_labels = extract_labels(test_labels_path, test_set_size)
 
-    #augment data by adding rotation robustness 
-    print("Augmentation of MNIST dataset to be resistant to rotation...")
-    #train_images, train_labels = augment_data_imgaug(train_images,train_labels,10, 20)
-    #test_images, test_labels = augment_data_imgaug(test_images,test_labels,10,20)
-    train_images, train_labels = augment_dataset(train_images,train_labels)
-    test_images, test_labels = augment_dataset(test_images,test_labels)
+    #augment data by adding rotation robustness   
+    train_images, train_labels = augment_dataset(train_images,train_labels, rotation)
+    test_images, test_labels = augment_dataset(test_images,test_labels, rotation)
 
     #remove class 9, resize features, convert to Tensor 
     train_images, train_labels = preprocessing_mnist(train_images,train_labels, mini_batch_size)
     test_images, test_labels = preprocessing_mnist(test_images,test_labels, mini_batch_size)
 
     #display dataset sizes 
-    print(train_images.size())
-    print(train_labels.size())
-    print(test_images.size())
-    print(test_labels.size())
+    print("Training set size -----> ", train_images.size())
+    print("Training labels size --> ", train_labels.size())
+    print("Testing set size ------> ", test_images.size())
+    print("Testing labels size ---> ",test_labels.size())
 
     return train_images[:,None,:,:], test_images[:,None,:,:], train_labels, test_labels
 
@@ -94,7 +95,7 @@ def preprocessing_mnist(data, labels, mini_batch_size):
     labels = labels[labels != 9]
 
     #resize to be divisable by mini_batch_size 
-    data_size=data.size[0]
+    data_size=data.shape[0]
     mod=data_size%mini_batch_size 
 
     if mod != 0: 
@@ -110,12 +111,11 @@ def preprocessing_mnist(data, labels, mini_batch_size):
 def chooseImage(data, labels, label):
     #label: the class
     #choose randomly between image from video original image 
-    #img = data[random.choice([labels==label])]
     images_idx = [i for i, e in enumerate(labels) if e == label]
     return data[random.choice(images_idx)]
 
 def augment_data_imgaug(data, labels, nb_op, sample_per_class=700):
-    data_aug, labels_aug = [data], [labels]
+    data_aug, labels_aug = [], []
 
     #define the possible transformations 
     seq = iaa.Sequential([
@@ -174,10 +174,10 @@ def create_operators_data(data_dir):
     train_images, train_labels = preprocessing_op(train_images,train_labels)
     test_images, test_labels = preprocessing_op(test_images,test_labels)
 
-    print(train_images.size())
-    print(train_labels.size())
-    print(test_images.size())
-    print(test_labels.size())
+    print("Training set size -----> ", train_images.size())
+    print("Training labels size --> ", train_labels.size())
+    print("Testing set size ------> ", test_images.size())
+    print("Testing labels size ---> ",test_labels.size())
 
     return train_images[:,None,:,:], test_images[:,None,:,:], train_labels, test_labels
 
@@ -192,7 +192,7 @@ def preprocessing_op(data, labels):
     return (torch.FloatTensor(data_resized), torch.LongTensor(labels)) 
 
 
-def train_model(path_model, epochs, display_perf, data_dir, digits=True):
+def train_model(path_model, epochs, display_perf, data_dir, digits=True, rotation=False):
 
     #conditions for the net 
     torch.manual_seed(0)
@@ -201,7 +201,7 @@ def train_model(path_model, epochs, display_perf, data_dir, digits=True):
 
     #generate data 
     if digits:
-        train_input, test_input, train_target, test_target = create_mnist_data(data_dir, mini_batch_size)
+        train_input, test_input, train_target, test_target = create_mnist_data(data_dir, mini_batch_size, rotation)
         n_output = 9
         print("Start training model on MNIST dataset...")
 
@@ -251,6 +251,7 @@ def train_model(path_model, epochs, display_perf, data_dir, digits=True):
         avg_loss_te, avg_accuracy_te = compute_performances(model, test_input, test_target, mini_batch_size, criterion)
         if e % display_step ==0:            
             print('          --> test loss = ' + "{:.3f}".format(avg_loss_te), ', test accuracy: ' + "{:.3f}".format(avg_accuracy_te) + "%")
+            print('-------------------------------------------------------------')
         losses_te.append(avg_loss_te)
         accuracies_te.append(avg_accuracy_te)
 
@@ -322,7 +323,7 @@ def compute_performances(model, inputs, labels, mini_batch_size, criterion):
     return avg_loss, avg_acc
     
 
-def evaluate_expression(symbols, args, show=False):
+def evaluate_expression(symbols, args, show=False, rotation=False):
     # we know that first is a digits and second is an operator and so forth 
     expression_value=""
     preds=[]
@@ -331,15 +332,27 @@ def evaluate_expression(symbols, args, show=False):
     for symb in symbols: 
 
         if (not expression_value) or (not expression_value[-1].isdigit()) : #if first character or last one was operator
-            # classification as a digit 
-            if os.path.exists(args.model_digits):
-                model=CNNet(9)
-                model.load_state_dict(torch.load(args.model_digits))
-                model.eval()
-                output = model(preprocessing_symb(symb))
-                predicted = torch.argmax(output)
-                preds.append(predicted)
-                char=str(int(predicted))
+            if rotation: 
+                # classification as a digit, invariant to rotation
+                if os.path.exists(args.model_digits_rotation):
+                    model=CNNet(9)
+                    model.load_state_dict(torch.load(args.model_digits_rotation))
+                    model.eval()
+                    output = model(preprocessing_symb(symb))
+                    predicted = torch.argmax(output)
+                    preds.append(predicted)
+                    char=str(int(predicted))
+            else: 
+                # classification as a digit
+                if os.path.exists(args.model_digits):
+                    model=CNNet(9)
+                    model.load_state_dict(torch.load(args.model_digits))
+                    model.eval()
+                    output = model(preprocessing_symb(symb))
+                    predicted = torch.argmax(output)
+                    preds.append(predicted)
+                    char=str(int(predicted))
+            
         
         else: # last character was a digits
             # classification as an operator 
