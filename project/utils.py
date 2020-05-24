@@ -57,8 +57,8 @@ def augment_dataset(data, labels, rotation):
 def create_mnist_data(data_dir, mini_batch_size, rotation):
     image_shape = (28, 28)
     #initial dataset size, will increase with augmentation
-    train_set_size = 5000
-    test_set_size = 1500
+    train_set_size = 10000
+    test_set_size = 3000
 
     #path to dataset 
     train_images_path = os.path.join(data_dir, 'train-images-idx3-ubyte.gz')
