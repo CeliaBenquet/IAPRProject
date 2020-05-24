@@ -45,13 +45,10 @@ def augment_dataset(data, labels):
     for degrees in range(10, 360, 10):
         rotated_data.append(rotate(data, degrees))
         rotated_labels.append(labels)
-        #print("Generated data with", degrees, "degrees")
 
-    #print("Rotated data size ", len(rotated_data))
-    #print("Rotated labels size ", len(rotated_labels))
     data = np.concatenate(rotated_data)
     labels = np.concatenate(rotated_labels)
-    #print("data shape ", data.shape)
+
     return data, labels
 
 def create_mnist_data(data_dir, mini_batch_size):
@@ -74,6 +71,8 @@ def create_mnist_data(data_dir, mini_batch_size):
 
     #augment data by adding rotation robustness 
     print("Augmentation of MNIST dataset to be resistant to rotation...")
+    #train_images, train_labels = augment_data_imgaug(train_images,train_labels,10, 20)
+    #test_images, test_labels = augment_data_imgaug(test_images,test_labels,10,20)
     train_images, train_labels = augment_dataset(train_images,train_labels)
     test_images, test_labels = augment_dataset(test_images,test_labels)
 
@@ -93,14 +92,15 @@ def preprocessing_mnist(data, labels, mini_batch_size):
     #remove class of 9
     data = data[labels != 9]
     labels = labels[labels != 9]
-    
+
     #resize to be divisable by mini_batch_size 
-    data_size=data.shape[0]
+    data_size=data.size[0]
     mod=data_size%mini_batch_size 
+
     if mod != 0: 
-        data = data[: data.shape[0]-mod]
-        labels = labels[: labels.shape[0]-mod]
-    
+        data = data[: data_size-mod]
+        labels = labels[: data_size-mod]
+
     #convert to Tensors 
     data = torch.from_numpy(data)
     labels = torch.from_numpy(labels)
@@ -114,8 +114,8 @@ def chooseImage(data, labels, label):
     images_idx = [i for i, e in enumerate(labels) if e == label]
     return data[random.choice(images_idx)]
 
-def augment_data_imgaug(data, labels, nb_op):
-    data_aug, labels_aug = [], []
+def augment_data_imgaug(data, labels, nb_op, sample_per_class=700):
+    data_aug, labels_aug = [data], [labels]
 
     #define the possible transformations 
     seq = iaa.Sequential([
@@ -130,9 +130,6 @@ def augment_data_imgaug(data, labels, nb_op):
         rotate=(-90, 90),
         shear=(-8, 8) 
     )], random_order=True) # apply augmenters in random order
-
-    #apply possible transformation to each class 
-    sample_per_class=700  #nb images for training/testing
 
     for batch_idx in range(int(sample_per_class)): #nb of sample per class 
         for i in range(nb_op): 
@@ -157,10 +154,6 @@ def create_operators_data(data_dir):
             labels.append(i)
             data.append(temp_img_main)
 
-            #cv2.imshow('img', temp_img_main)
-            #cv2.waitKey(0)
-            #cv2.destroyAllWindows()
-
         #image from original operators 
         img_path_or = os.path.join(data_dir, str(i), 'original.jpg')
         if os.path.isfile(img_path_or):
@@ -168,10 +161,6 @@ def create_operators_data(data_dir):
             temp_img = thresholding(cv2.cvtColor(temp_img, cv2.COLOR_BGR2GRAY))
             labels.append(i)
             data.append(temp_img) 
-        
-        #cv2.imshow('img', temp_img)
-        #cv2.waitKey(0)
-        #cv2.destroyAllWindows()
 
     #augment the data
     print("Augmentation of the data for the operators...")
@@ -336,7 +325,9 @@ def compute_performances(model, inputs, labels, mini_batch_size, criterion):
 def evaluate_expression(symbols, args):
     # we know that first is a digits and second is an operator and so forth 
     expression_value=""
-
+    preds=[]
+    labels=[3,2,2,3,7,1,2,0]
+    
     for symb in symbols: 
 
         if (not expression_value) or (not expression_value[-1].isdigit()) : #if first character or last one was operator
@@ -346,8 +337,8 @@ def evaluate_expression(symbols, args):
                 model.load_state_dict(torch.load(args.model_digits))
                 model.eval()
                 output = model(preprocessing_symb(symb))
-                #print(output)
                 predicted = torch.argmax(output)
+                preds.append(predicted)
                 char=str(int(predicted))
         
         else: # last character was a digits
@@ -356,20 +347,26 @@ def evaluate_expression(symbols, args):
                 model=CNNet(5)
                 model.load_state_dict(torch.load(args.model_operators))
                 model.eval()
-                preprocessing_symb(symb)
                 output = model(preprocessing_symb(symb))
                 predicted = torch.argmax(output)
+                preds.append(predicted)
                 char=opToStr(int(predicted))
 
         # add the charactere to the equation
         expression_value+=char
+    
+    fig = plt.figure(figsize=(25, 4))
+    for idx in range(len(symbols)):
+        ax = fig.add_subplot(1, 8, idx+1, xticks=[], yticks=[])
+        ax.imshow(symbols[idx], cmap='gray')
+        ax.set_title("{} ({})".format(str(preds[idx].item()), str(labels[idx])),
+                    color=("green" if preds[idx]==labels[idx] else "red"))
+    plt.show()
 
     print('Equation: ', expression_value)
-
     result = calculate_equation(expression_value)
 
-    return result 
-
+    return result
 
 def calculate_equation(expression):
     result = expression[0]
@@ -381,7 +378,7 @@ def calculate_equation(expression):
             raise NameError('Operator \'=\' was detected before the end of the expression')
         result = eval_binary_expr(result,oper,digit)
 
-    return result 
+    return result
 
 def eval_binary_expr(op1, oper, op2,
                      get_operator_fn={
@@ -396,7 +393,7 @@ def eval_binary_expr(op1, oper, op2,
 
 
 def preprocessing_symb(symbol):
-    symbol = torch.FloatTensor(thresholding(symbol))
+    symbol = torch.Tensor(symbol)
     return symbol[None,None,:,:]
 
 def thresholding(image):
@@ -439,31 +436,20 @@ def test_model(args, digits=True):
         model.load_state_dict(torch.load(args.model_operators))
         model.eval()
 
-   # obtain one batch of test images
-    nb_im=20
-    prng = np.random.RandomState(seed=123456789)  # seed to always re-draw the same distribution
-    plt_ind = prng.randint(low=0, high=test_input.shape[0], size=nb_im)
 
-    images=[]
-    labels=[]
-    for i in plt_ind:
-        images.append(test_input[i])
-        labels.append(test_target[i])
+    images=test_input[20:40]
+    labels=test_target[20:40]
 
-    #images, labels = np.array(images),np.array(labels)
-    images, labels = torch.stack(images), torch.stack(labels)
     print(images.size())
 
-    #images_,labels_=preprocessing(images, labels)
-
     # get sample outputs
-    output = model(images.float())
+    output = model(images)
     # convert output probabilities to predicted class
     preds = torch.argmax(output, 1)
 
-
     # plot the images in the batch, along with predicted and true labels
     images=images.numpy()
+    images=np.squeeze(images, axis=1)
     fig = plt.figure(figsize=(25, 4))
     for idx in range(nb_im):
         ax = fig.add_subplot(nb_im/10, 10, idx+1, xticks=[], yticks=[])

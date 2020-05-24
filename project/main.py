@@ -65,7 +65,7 @@ def process_video(args):
 
     #The expression is here
     symbols = [all_patches[i] for i in symbol_ids]
-    printPatches(symbols)
+    #printPatches(symbols)
 
     #classify symbol
     result = evaluate_expression(symbols, args) 
@@ -74,7 +74,6 @@ def process_video(args):
     # Release all space and windows once done
     cam.release()
     cv2.destroyAllWindows()
-
 
 
 if __name__ == '__main__':
@@ -133,8 +132,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-
-
     ## generate and train model for digits recognition 
     if args.training_digits: 
         #train the parameters of the model for digits 
@@ -146,7 +143,8 @@ if __name__ == '__main__':
 
     if args.run:
         #process_video(args.input)
-        #test_model(args, digits=False)
+        #test_model(args,digits=False)
+        #test_model(args,digits=True)
         process_video(args)
         
 
