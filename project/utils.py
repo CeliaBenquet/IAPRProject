@@ -20,6 +20,9 @@ import operator
 
 
 def extract_data(filename, image_shape, image_number):
+    """
+    Extract train/test data 
+    """
     with gzip.open(filename) as bytestream:
         bytestream.read(16)
         buf = bytestream.read(np.prod(image_shape) * image_number)
@@ -28,6 +31,9 @@ def extract_data(filename, image_shape, image_number):
     return data
 
 def extract_labels(filename, image_number):
+    """
+    Extract train/test labels
+    """
     with gzip.open(filename) as bytestream:
         bytestream.read(8)
         buf = bytestream.read(1 * image_number)
@@ -35,30 +41,50 @@ def extract_labels(filename, image_number):
     return labels
 
 def rotate(data, degrees):
+    """
+    Rotate images in data by a given degree
+    """
     data = data.copy()
     for image in data[:]:
         image = ndimage.rotate(image, degrees, reshape=False)
     return data
 
 def augment_dataset(data, labels, rotation):
+    """
+    Augment MNIST data set by rotating the images by step of 10° and transfo to array
+    model resistant to random orientation of the images 
+    """
     rotated_data = [data]
     rotated_labels = [labels]
+
+    #rotation only if rotation is set to True 
     if rotation:
         print("Augmentation of MNIST dataset to be resistant to rotation...")
         for degrees in range(10, 360, 10):
             rotated_data.append(rotate(data, degrees))
             rotated_labels.append(labels)
 
+    #transfo from list to array
     data = np.concatenate(rotated_data)
     labels = np.concatenate(rotated_labels)
 
     return data, labels
 
 def create_mnist_data(data_dir, mini_batch_size, rotation):
+    """ 
+    Create the dataset to train on digits 
+    data_dir: directoy where MNIST data set is stored
+    mini_batch_size: batch size for the Net used to set the train/test set size 
+    rotation: if set to True, dataset to train for rotation invariance
+    """
     image_shape = (28, 28)
-    #initial dataset size, will increase with augmentation
-    train_set_size = 10000
-    test_set_size = 3000
+    if rotation: 
+        #initial dataset size, will increase with augmentation
+        train_set_size = 1000
+        test_set_size = 300
+    else: 
+        train_set_size = 10000
+        test_set_size = 3000
 
     #path to dataset 
     train_images_path = os.path.join(data_dir, 'train-images-idx3-ubyte.gz')
@@ -73,7 +99,7 @@ def create_mnist_data(data_dir, mini_batch_size, rotation):
     train_labels = extract_labels(train_labels_path, train_set_size)
     test_labels = extract_labels(test_labels_path, test_set_size)
 
-    #augment data by adding rotation robustness   
+    #augment data by adding rotation robustness , only if rotation set to True
     train_images, train_labels = augment_dataset(train_images,train_labels, rotation)
     test_images, test_labels = augment_dataset(test_images,test_labels, rotation)
 
@@ -87,14 +113,18 @@ def create_mnist_data(data_dir, mini_batch_size, rotation):
     print("Testing set size ------> ", test_images.size())
     print("Testing labels size ---> ",test_labels.size())
 
+    #add dimensionalities to fit requirements for net input 
     return train_images[:,None,:,:], test_images[:,None,:,:], train_labels, test_labels
 
 def preprocessing_mnist(data, labels, mini_batch_size): 
+    """
+    Preprocess datasets to be optimized for training/testing
+    """
     #remove class of 9
     data = data[labels != 9]
     labels = labels[labels != 9]
 
-    #resize to be divisable by mini_batch_size 
+    #resize to be divisable by mini_batch_size in Net
     data_size=data.shape[0]
     mod=data_size%mini_batch_size 
 
@@ -114,7 +144,10 @@ def chooseImage(data, labels, label):
     images_idx = [i for i, e in enumerate(labels) if e == label]
     return data[random.choice(images_idx)]
 
-def augment_data_imgaug(data, labels, nb_op, sample_per_class=700):
+def augment_data_imgaug(data, labels, nb_op):
+    """
+    Augment operators dataset to have more images + be resistant to different kind of transfo 
+    """
     data_aug, labels_aug = [], []
 
     #define the possible transformations 
@@ -131,7 +164,10 @@ def augment_data_imgaug(data, labels, nb_op, sample_per_class=700):
         shear=(-8, 8) 
     )], random_order=True) # apply augmenters in random order
 
-    for batch_idx in range(int(sample_per_class)): #nb of sample per class 
+    #nb of sample per class (per operator)
+    sample_per_class=700
+
+    for batch_idx in range(int(sample_per_class)): 
         for i in range(nb_op): 
             data_aug.append(seq.augment_images(chooseImage(data, labels, i))) #add one image
             labels_aug.append(i) #add the corresponding label
@@ -140,6 +176,17 @@ def augment_data_imgaug(data, labels, nb_op, sample_per_class=700):
 
 
 def create_operators_data(data_dir):
+    """
+    Create train/test sets for the operators
+    data_dir: directory where the original operators images are stored
+    the operators are stored as numbers to be classified
+    0: =
+    1: *
+    2: /
+    3: +
+    4: -
+    """
+    #nb of operators 
     nb_op=5
     
     #get the data
@@ -174,26 +221,40 @@ def create_operators_data(data_dir):
     train_images, train_labels = preprocessing_op(train_images,train_labels)
     test_images, test_labels = preprocessing_op(test_images,test_labels)
 
+    #diplay size of the datasets
     print("Training set size -----> ", train_images.size())
     print("Training labels size --> ", train_labels.size())
     print("Testing set size ------> ", test_images.size())
     print("Testing labels size ---> ",test_labels.size())
 
+    #add dimensions to fir the net requirements 
     return train_images[:,None,:,:], test_images[:,None,:,:], train_labels, test_labels
 
 
 def preprocessing_op(data, labels): 
+    """
+    Preprocess the operators images to fit the requirements for the net 
+    resize images to 28*28 and transformation to tensors 
+    """
     data_resized=[]
     for image in data: 
-        #cv2.imshow('img', cv2.resize(image, (28,28), interpolation = cv2.INTER_AREA))
-        #cv2.waitKey(0)
-        #cv2.destroyAllWindows()
+        #resize 
         data_resized.append(cv2.resize(image, (28,28), interpolation = cv2.INTER_AREA))
+    #turn into tensors 
     return (torch.FloatTensor(data_resized), torch.LongTensor(labels)) 
 
 
 def train_model(path_model, epochs, display_perf, data_dir, digits=True, rotation=False):
-
+    """
+    Main function for training 
+    Used for both digits (with or without rotation) or operators training 
+        path_model: file to which the output model is stored 
+        epochs: number of epochs for the training 
+        display_perf: if True, display graphs of loss and accuracy over the epochs for train and test 
+        data_dir: directory where the data are stored 
+        digits: if True, model for digits recognition is trained else model for operators recognition
+        rotation: if True, model for digits recognition invariant to rotation is trained, else no rotation invariance  
+    """ 
     #conditions for the net 
     torch.manual_seed(0)
     np.random.seed(0)
@@ -201,21 +262,25 @@ def train_model(path_model, epochs, display_perf, data_dir, digits=True, rotatio
 
     #generate data 
     if digits:
+        #train model for digits recognition 
+        #if rotation is True: digit recognition invariant to rotation 
         train_input, test_input, train_target, test_target = create_mnist_data(data_dir, mini_batch_size, rotation)
+        #number of classes (9 digits - no 9)
         n_output = 9
         print("Start training model on MNIST dataset...")
 
     else: 
+        #train model for operators recognition 
         train_input, test_input, train_target, test_target = create_operators_data(data_dir)
+        #number of classes (5 operators)
         n_output = 5
         print("Start training model on operators dataset...")
 
     #create net and parameters of the model 
     model = CNNet(n_output)
-    #model = Net(n_input, n_hidden, n_output)
     criterion = nn.CrossEntropyLoss()
-    display_step = 5
     optimizer = optim.Adam(model.parameters(), lr=0.001) 
+    display_step = 5
 
     #stock performances to display 
     losses_tr = []
@@ -223,13 +288,15 @@ def train_model(path_model, epochs, display_perf, data_dir, digits=True, rotatio
     losses_te = []
     accuracies_te = []
     
-    best_acc=0
+    #best accuracy on all epochs 
+    best_acc=-100
     
+    #needed as we use batch normalization and dropout regularization techniques 
     model.train()
     
     for e in range(epochs):
 
-        # We do this with mini-batches
+        #using mini-batches 
         for b in range(0, train_input.size(0), mini_batch_size):
             optimizer.zero_grad()
 
@@ -255,14 +322,16 @@ def train_model(path_model, epochs, display_perf, data_dir, digits=True, rotatio
         losses_te.append(avg_loss_te)
         accuracies_te.append(avg_accuracy_te)
 
-        #keep best model 
+        #keep best model as output model
         if avg_accuracy_te > best_acc: 
             best_model=model.state_dict()
             best_acc=avg_accuracy_te
 
+    #if True, display graphs and print the best model (the one that is saved)
     if display_perf:   
         #print best model 
         print('Best accuracy on test: {}'.format(best_acc))
+
         # plot the accuracy and loss
         x_axis=range(0,epochs,5)
         plt.figure(figsize = (20,10))
@@ -284,7 +353,7 @@ def train_model(path_model, epochs, display_perf, data_dir, digits=True, rotatio
         plt.title("Accuracy at testing (in %)")
         plt.show()
 
-    # save model
+    # save best model on all epochs  
     try: 
     
         # creating a folder named data 
@@ -301,7 +370,11 @@ def train_model(path_model, epochs, display_perf, data_dir, digits=True, rotatio
 
 
 def compute_performances(model, inputs, labels, mini_batch_size, criterion):
-    
+    """
+    Compute loss and accuracy on train or test model depending on the input
+    the function is called at each epoch of the training to get progressions 
+    model: the model at the time of the call
+    """
     model.eval()
     
     sum_loss=0.0
@@ -309,14 +382,17 @@ def compute_performances(model, inputs, labels, mini_batch_size, criterion):
     
     for b in range(0, inputs.size(0), mini_batch_size):
         # get the outputs from the trained model
-        output = model(inputs.narrow(0, b, mini_batch_size)) #should have done it by mini batches 
+        output = model(inputs.narrow(0, b, mini_batch_size))
 
         loss = criterion(output, labels.narrow(0, b, mini_batch_size))
         sum_loss += loss.item()
         
+        #prediction based on output: takes the higher proba 
         predicted = torch.argmax(output, 1)
+        #check if the predictions corresponds to the label
         correct += (predicted == labels.narrow(0, b, mini_batch_size)).sum().double()
     
+    #calculate the averaged loss and accuracy over the epoch (on all mini-batches)
     avg_loss=sum_loss/inputs.shape[0]
     avg_acc=100 * correct/inputs.shape[0]
     
@@ -324,50 +400,73 @@ def compute_performances(model, inputs, labels, mini_batch_size, criterion):
     
 
 def evaluate_expression(symbols, args, rotation=False, show=False):
+    """
+    Evaluate given images and return label as a charactere 
+        symbols: can be one or a set of images 
+        rotation: if True, use the roation invariant model for digits 
+        show: if True, show symbols with their prediction and label
+    """
     # we know that first is a digits and second is an operator and so forth 
     expression_value=""
-    preds=[]
-    labels=[3,2,2,3,7,1,2,0]
+
+    #used to show the results 
+    if show: 
+        preds=[]
+        labels=[3,2,2,3,7,1,2,0]
     
+    #go through the list of images to evaluate 
     for symb in symbols: 
 
-        if (not expression_value) or (not expression_value[-1].isdigit()) : #if first character or last one was operator
+        #if first character or last one was operator => current is a digit
+        if (not expression_value) or (not expression_value[-1].isdigit()):
+            n_output=9
             if rotation: 
                 # classification as a digit, invariant to rotation
                 if os.path.exists(args.model_digits_rotation):
-                    model=CNNet(9)
+                    model=CNNet(n_output)
+                    #load the corresponding model 
                     model.load_state_dict(torch.load(args.model_digits_rotation))
                     model.eval()
+                    #evaluate the label of the image 
                     output = model(preprocessing_symb(symb))
                     predicted = torch.argmax(output)
-                    preds.append(predicted)
+                    if show: preds.append(predicted)
+                    #transfo to str (we know it's a digit)
                     char=str(int(predicted))
             else: 
-                # classification as a digit
+                # classification as a digit, no invariance to rotation 
                 if os.path.exists(args.model_digits):
-                    model=CNNet(9)
+                    model=CNNet(n_output)
+                    #load the corresponding model 
                     model.load_state_dict(torch.load(args.model_digits))
                     model.eval()
+                    #evaluate the label of the image
                     output = model(preprocessing_symb(symb))
                     predicted = torch.argmax(output)
-                    preds.append(predicted)
+                    if show: preds.append(predicted)
+                    #transfo to str (we know it's a digit )
                     char=str(int(predicted))
             
-        
-        else: # last character was a digits
+        # last character was a digits => current is an operator 
+        else: 
             # classification as an operator 
+            n_output=5
             if os.path.exists(args.model_operators):
-                model=CNNet(5)
+                model=CNNet(n_output)
+                #load the corresponding model
                 model.load_state_dict(torch.load(args.model_operators))
                 model.eval()
+                #evaluate the label of the image
                 output = model(preprocessing_symb(symb))
                 predicted = torch.argmax(output)
-                preds.append(predicted)
+                if show: preds.append(predicted)
+                #transfo to str knowing correspondance from label to operator 
                 char=opToStr(int(predicted))
 
         # add the charactere to the equation
         expression_value+=char
     
+    # show the symbols images with their corresponding prediction and labels 
     if show:
         fig = plt.figure(figsize=(25, 4))
         for idx in range(len(symbols)):
@@ -381,13 +480,24 @@ def evaluate_expression(symbols, args, rotation=False, show=False):
 
 
 def calculate_equation(expression):
+    """ 
+    Calculate the results of the operation based on the final equation 
+    expression: prediction of each number that the robot passed in order
+    result: result of the equation it constitutes
+    """
+    #the result is a double. first char is a digit 
     result = float(expression[0])
 
-    for i in range(1,len(expression)-1,2): 
+    for i in range(1,len(expression)-1,2):
+        #for each pair of char, first one is an operator, second is a digit  
         oper=expression[i]
         digit=expression[i+1]
+        
+        #if '=' detected before the end of the operation, then error (means end of the operation)
         if oper=='=' and i!=expression[-1]:
             raise NameError('Operator \'=\' was detected before the end of the expression')
+        
+        #operation between result (already computed operations) and the next digit
         result = eval_binary_expr(result,oper,digit)
 
     return result
@@ -399,23 +509,40 @@ def eval_binary_expr(op1, oper, op2,
                          '*' : operator.mul,
                          '/' : operator.truediv,
                          }.get):
-    # calculate result for binary expression 
+    """
+    Calculate result of binary expression
+        op1: already computed result (already a double)
+        oper: str converted to operator 
+        op2: next digit 
+    """ 
     op1,op2 = float(op1), float(op2)
     return get_operator_fn(oper)(op1, op2)
 
 
 def preprocessing_symb(symbol):
+    """
+    Transform symb to a Tensor to be evaluated by model 
+    """
     symbol = torch.Tensor(symbol)
     return symbol[None,None,:,:]
 
 def thresholding(image):
-    #using otsu adaptative thresholding 
+    """
+    Otsu adaptative thresholding 
+    """
     _,th2 = cv2.threshold(image,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
     return th2
 
 
 def opToStr(op_int): 
-    #convert classes to corresponding operator in the exp
+    """
+    Convert class label to corresponding operator in the exp
+    0: =
+    1: *
+    2: /
+    3: +
+    4: -
+    """
     if op_int == 0: 
         op_str = '='
     elif op_int == 1: 
@@ -429,26 +556,34 @@ def opToStr(op_int):
     return op_str
 
 
-def preprocessing_test(symbol):
-    symbol = torch.FloatTensor(symbol)
-    return symbol[None,None,:,:]
-
 def test_model(args, digits=True):
+    """
+    Test function to assess models performances 
+    Display a set of the testset with corresponding prediction and label
+    can be either on digit or operator recognition model
+    """
+
+    # test digit model 
     if digits:
+        #create dataset
         train_input, test_input, train_target, test_target = create_mnist_data(args.mnist_data, 50)
         n_output = 9
-        model=CNNet(9)
+        model=CNNet(n_output)
+        #load model
         model.load_state_dict(torch.load(args.model_digits))
         model.eval()
 
+    #test operator model
     else: 
+        #create dataset
         train_input, test_input, train_target, test_target = create_operators_data(args.operators_data)
         n_output = 5
-        model=CNNet(5)
+        model=CNNet(n_output)
+        #load model 
         model.load_state_dict(torch.load(args.model_operators))
         model.eval()
 
-
+    #create subset to display 
     images=test_input[20:40]
     labels=test_target[20:40]
 
