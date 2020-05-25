@@ -19,7 +19,7 @@ def thresholdArrow(frame):
     g = frame[:,:,1]
     b = frame[:,:,0]
 
-    return np.logical_and(np.logical_and(r > 100, b < 80), g < 80)
+    return np.logical_and(np.logical_and(r > 100, b < 60), g < 60)
 
 
 def bounding_box(frame):
@@ -183,4 +183,11 @@ def printPatchesAll(a, b):
 
 def draw_expression(frame, expression):
     cv2.putText(frame, "Expression: " + expression, (100, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,255,255), 2)
+
+def draw_positions(frame, positions):
+    if len(positions) > 0:
+        cv2.circle(frame, positions[0], 1, (255, 0, 0), 10)
+        for i in range(1, len(positions)):
+            cv2.circle(frame, positions[i], 1, (255, 0, 0), 10)
+            cv2.line(frame, positions[i-1], positions[i], (255, 255, 0))
 
