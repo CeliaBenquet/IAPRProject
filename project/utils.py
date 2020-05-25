@@ -381,7 +381,7 @@ def evaluate_expression(symbols, args, rotation=False, show=False):
 
 
 def calculate_equation(expression):
-    result = expression[0]
+    result = float(expression[0])
 
     for i in range(1,len(expression)-1,2): 
         oper=expression[i]
@@ -400,7 +400,7 @@ def eval_binary_expr(op1, oper, op2,
                          '/' : operator.truediv,
                          }.get):
     # calculate result for binary expression 
-    op1,op2 = int(op1), int(op2)
+    op1,op2 = float(op1), float(op2)
     return get_operator_fn(oper)(op1, op2)
 
 
