@@ -10,7 +10,7 @@ from torch import optim
 import os
 
 
-def process_video(args):
+def process_video(args, rotation=False):
     # Read the video from specified path
     cam = cv2.VideoCapture(args.input)
 
@@ -60,7 +60,7 @@ def process_video(args):
 
 
             symbols = [all_patches[i] for i in symbol_ids]
-            expression_value = evaluate_expression(symbols, args)
+            expression_value = evaluate_expression(symbols, args, rotation)
 
             if len(expression_value) > 0 and expression_value[-1] == '=':
                 expression_value = evaluate_expression(symbols, args)
@@ -112,6 +112,10 @@ if __name__ == '__main__':
                         action = 'store_true', default = False,
                         help = 'Train the model for digits recognition on the MNIST dataset')
 
+    parser.add_argument('--training_digits_rotation',
+                        action = 'store_true', default = False,
+                        help = 'Train the model for digits recognition on the MNIST dataset, invariance to rotation')
+
     parser.add_argument('--training_operators',
                         action = 'store_true', default = False,
                         help = 'Train the model for operators recognition')
@@ -128,6 +132,10 @@ if __name__ == '__main__':
                         type = str, default = 'model/model_MNIST.pt',
                         help = 'Path to trained model for digits')
                         
+    parser.add_argument('--model_digits_rotation',
+                        type = str, default = 'model/model_MNIST_rotation.pt',
+                        help = 'Path to trained model for digits, invariance to rotation')
+
     parser.add_argument('--model_operators',
                         type = str, default = 'model/model_operators.pt',
                         help = 'Path to trained model for operators')
@@ -143,22 +151,32 @@ if __name__ == '__main__':
     parser.add_argument('--operators_data',
                         type = str, default = data_op_folder,
                         help = 'Path to the operators images')
+                        
+    parser.add_argument('--rotation',
+                        action = 'store_true', default = False,
+                        help = 'Uses model where digits rotation are taken into account')
 
     args = parser.parse_args()
 
-    ## generate and train model for digits recognition 
+    ### generate and train model for digits recognition 
     if args.training_digits: 
-        #train the parameters of the model for digits 
-        train_model(args.model_digits, args.epochs, args.display_training, args.mnist_data, digits=True)
-        
+        #train the parameters of the model for digits without rotation invariance 
+        train_model(args.model_digits, args.epochs, args.display_training, args.mnist_data, digits=True, rotation=False)
+
+    if args.training_digits_rotation: 
+        #train the parameters of the model for digits with rotation invariance 
+        train_model(args.model_digits_rotation, args.epochs, args.display_training, args.mnist_data, digits=True, rotation=True)
+    
+    ### generate and train model for operators recognition 
     if args.training_operators: 
         #train the parameters of the model for operators 
         train_model(args.model_operators, args.epochs, args.display_training, args.operators_data, digits=False)
 
+    ### run the recognition on video 
     if args.run:
         #process_video(args.input)
         #test_model(args,digits=False)
         #test_model(args,digits=True)
-        process_video(args)
+        process_video(args, rotation=args.rotation)
         
 
