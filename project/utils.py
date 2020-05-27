@@ -1,7 +1,6 @@
 import gzip
 import numpy as np
 import matplotlib.pyplot as plt
-from Net import Net
 from CNNet import CNNet
 import torch 
 from torch import Tensor 
