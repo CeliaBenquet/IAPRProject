@@ -478,52 +478,6 @@ def evaluate_expression(symbols, args, rotation=False, show=False):
 
 
 def calculate_equation(expression):
-    """ 
-    Calculate the results of the operation based on the final equation 
-    expression: prediction of each number that the robot passed in order
-    result: result of the equation it constitutes
-    """
-    #the result is a double. first char is a digit 
-    result = float(expression[0])
-
-    for i in range(1,len(expression)-1,2): 
-        #for each pair of char, first one is an operator, second is a digit  
-        oper=expression[i]
-        digit=expression[i+1]
-        
-        #if '=' detected before the end of the operation, then error (means end of the operation)
-        if oper=='=' and i!=expression[-1]:
-            raise NameError('Operator \'=\' was detected before the end of the expression')
-        
-        #operation between result (already computed operations) and the next digit
-        result = eval_binary_expr(result,oper,digit)
-
-    return result
-
-
-"""def calculate_equation(expression):
-Calculate the results of the operation based on the final equation 
-    expression: prediction of each number that the robot passed in order
-    result: result of the equation it constitutes
-
-    #the result is a double. first char is a digit 
-    oper=[]
-    digit=[]
-
-    for i in range(1,len(expression)-1,2): 
-        #for each pair of char, first one is an operator, second is a digit  
-        oper.append(expression[i])
-        digit.append(expression[i+1])
-
-        #if '=' detected before the end of the operation, then error (means end of the operation)
-        if oper=='=' and i!=expression[-1]:
-            raise NameError('Operator \'=\' was detected before the end of the expression')
-
-
-    return result"""
-
-
-def calculate_equation(expression):
     return eval(expression[:-1])
 
 
