@@ -17,7 +17,6 @@ import random
 from skimage.filters import threshold_otsu
 import operator
 
-
 def extract_data(filename, image_shape, image_number):
     """
     Extract train/test data 
@@ -487,7 +486,7 @@ def calculate_equation(expression):
     #the result is a double. first char is a digit 
     result = float(expression[0])
 
-    for i in range(1,len(expression)-1,2):
+    for i in range(1,len(expression)-1,2): 
         #for each pair of char, first one is an operator, second is a digit  
         oper=expression[i]
         digit=expression[i+1]
@@ -501,21 +500,31 @@ def calculate_equation(expression):
 
     return result
 
-def eval_binary_expr(op1, oper, op2,
-                     get_operator_fn={
-                         '+' : operator.add,
-                         '-' : operator.sub,
-                         '*' : operator.mul,
-                         '/' : operator.truediv,
-                         }.get):
-    """
-    Calculate result of binary expression
-        op1: already computed result (already a double)
-        oper: str converted to operator 
-        op2: next digit 
-    """ 
-    op1,op2 = float(op1), float(op2)
-    return get_operator_fn(oper)(op1, op2)
+
+"""def calculate_equation(expression):
+Calculate the results of the operation based on the final equation 
+    expression: prediction of each number that the robot passed in order
+    result: result of the equation it constitutes
+
+    #the result is a double. first char is a digit 
+    oper=[]
+    digit=[]
+
+    for i in range(1,len(expression)-1,2): 
+        #for each pair of char, first one is an operator, second is a digit  
+        oper.append(expression[i])
+        digit.append(expression[i+1])
+
+        #if '=' detected before the end of the operation, then error (means end of the operation)
+        if oper=='=' and i!=expression[-1]:
+            raise NameError('Operator \'=\' was detected before the end of the expression')
+
+
+    return result"""
+
+
+def calculate_equation(expression):
+    return eval(expression[:-1])
 
 
 def preprocessing_symb(symbol):
