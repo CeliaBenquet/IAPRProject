@@ -63,7 +63,7 @@ def process_video(args, rotation=False):
             expression_value = evaluate_expression(symbols, args, rotation)
 
             if len(expression_value) > 0 and expression_value[-1] == '=':
-                expression_value = evaluate_expression(symbols, args)
+                expression_value = evaluate_expression(symbols, args, rotation)
                 result = calculate_equation(expression_value)
                 expression_value += str(result)
 
