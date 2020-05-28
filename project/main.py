@@ -113,10 +113,6 @@ if __name__ == '__main__':
                         action = 'store_true', default = False,
                         help = 'Train the model for digits recognition on the MNIST dataset')
 
-    parser.add_argument('--training_digits_rotation',
-                        action = 'store_true', default = False,
-                        help = 'Train the model for digits recognition on the MNIST dataset, invariance to rotation')
-
     parser.add_argument('--training_operators',
                         action = 'store_true', default = False,
                         help = 'Train the model for operators recognition')
@@ -159,15 +155,16 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    ### generate and train model for digits recognition 
+### generate and train model for digits recognition 
     if args.training_digits: 
-        #train the parameters of the model for digits without rotation invariance 
-        train_model(args.model_digits, args.epochs, args.display_training, args.mnist_data, digits=True, rotation=False)
 
-    if args.training_digits_rotation: 
-        #train the parameters of the model for digits with rotation invariance 
-        train_model(args.model_digits_rotation, args.epochs, args.display_training, args.mnist_data, digits=True, rotation=True)
-    
+        if args.rotation: 
+            #train the parameters of the model for digits with rotation invariance 
+            train_model(args.model_digits_rotation, args.epochs, args.display_training, args.mnist_data, digits=True, rotation=True)
+        else:
+            #train the parameters of the model for digits without rotation invariance 
+            train_model(args.model_digits, args.epochs, args.display_training, args.mnist_data, digits=True, rotation=False)
+
     ### generate and train model for operators recognition 
     if args.training_operators: 
         #train the parameters of the model for operators 
@@ -179,5 +176,4 @@ if __name__ == '__main__':
         #test_model(args,digits=False)
         #test_model(args,digits=True)
         process_video(args, rotation=args.rotation)
-        
 
