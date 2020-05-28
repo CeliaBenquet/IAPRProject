@@ -12,7 +12,7 @@ def normalize(frame):
     return normalized_im
 
 def threshold(frame):
-    return frame.mean(axis=2) < 130
+    return frame.mean(axis=2) < 110
 
 def thresholdArrow(frame):
     r = frame[:,:,2]
@@ -52,7 +52,7 @@ def bounding_boxes(frame):
 
     bounding_boxes = []
 
-    for i in range(nb_labels):
+    for i in range(nb_labels + 1):
         area = np.sum(labels == i) / frame_size
         if area > 1e-3 or area < 1e-5:
             labels[labels == i] = 0
