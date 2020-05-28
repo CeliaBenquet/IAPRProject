@@ -52,12 +52,12 @@ def augment_dataset(data, labels, rotation):
     Augment MNIST data set by rotating the images by step of 10° and transfo to array
     model resistant to random orientation of the images 
     """
+
     rotated_data = [data]
     rotated_labels = [labels]
 
     #rotation only if rotation is set to True 
     if rotation:
-        print("Augmentation of MNIST dataset to be resistant to rotation...")
         for degrees in range(10, 360, 10):
             rotated_data.append(rotate(data, degrees))
             rotated_labels.append(labels)
@@ -77,12 +77,13 @@ def create_mnist_data(data_dir, mini_batch_size, rotation):
     """
     image_shape = (28, 28)
     if rotation: 
+        print("Augmentation of MNIST dataset to be invariant to rotation...")
         #initial dataset size, will increase with augmentation
-        train_set_size = 1000
-        test_set_size = 300
+        train_set_size = 1500
+        test_set_size = 400
     else: 
-        train_set_size = 10000
-        test_set_size = 3000
+        train_set_size = 20000
+        test_set_size = 6000
 
     #path to dataset 
     train_images_path = os.path.join(data_dir, 'train-images-idx3-ubyte.gz')
@@ -91,7 +92,6 @@ def create_mnist_data(data_dir, mini_batch_size, rotation):
     test_labels_path = os.path.join(data_dir, 't10k-labels-idx1-ubyte.gz')
 
     #extract data and labels
-    print("Extraction of MNIST dataset")
     train_images = extract_data(train_images_path, image_shape, train_set_size)
     test_images = extract_data(test_images_path, image_shape, test_set_size)
     train_labels = extract_labels(train_labels_path, train_set_size)
@@ -163,7 +163,7 @@ def augment_data_imgaug(data, labels, nb_op):
     )], random_order=True) # apply augmenters in random order
 
     #nb of sample per class (per operator)
-    sample_per_class=700
+    sample_per_class=1000
 
     for batch_idx in range(int(sample_per_class)): 
         for i in range(nb_op): 
@@ -397,21 +397,15 @@ def compute_performances(model, inputs, labels, mini_batch_size, criterion):
     return avg_loss, avg_acc
     
 
-def evaluate_expression(symbols, args, rotation=False, show=False):
+def evaluate_expression(symbols, args, rotation=False):
     """
     Evaluate given images and return label as a charactere 
         symbols: can be one or a set of images 
         rotation: if True, use the roation invariant model for digits 
-        show: if True, show symbols with their prediction and label
     """
     # we know that first is a digits and second is an operator and so forth 
     expression_value=""
 
-    #used to show the results 
-    if show: 
-        preds=[]
-        labels=[3,2,2,3,7,1,2,0]
-    
     #go through the list of images to evaluate 
     for symb in symbols: 
 
@@ -428,7 +422,6 @@ def evaluate_expression(symbols, args, rotation=False, show=False):
                     #evaluate the label of the image 
                     output = model(preprocessing_symb(symb))
                     predicted = torch.argmax(output)
-                    if show: preds.append(predicted)
                     #transfo to str (we know it's a digit)
                     char=str(int(predicted))
             else: 
@@ -441,7 +434,6 @@ def evaluate_expression(symbols, args, rotation=False, show=False):
                     #evaluate the label of the image
                     output = model(preprocessing_symb(symb))
                     predicted = torch.argmax(output)
-                    if show: preds.append(predicted)
                     #transfo to str (we know it's a digit )
                     char=str(int(predicted))
             
@@ -457,22 +449,11 @@ def evaluate_expression(symbols, args, rotation=False, show=False):
                 #evaluate the label of the image
                 output = model(preprocessing_symb(symb))
                 predicted = torch.argmax(output)
-                if show: preds.append(predicted)
                 #transfo to str knowing correspondance from label to operator 
                 char=opToStr(int(predicted))
 
         # add the charactere to the equation
         expression_value+=char
-    
-    # show the symbols images with their corresponding prediction and labels 
-    if show:
-        fig = plt.figure(figsize=(25, 4))
-        for idx in range(len(symbols)):
-            ax = fig.add_subplot(1, 8, idx+1, xticks=[], yticks=[])
-            ax.imshow(symbols[idx], cmap='gray')
-            ax.set_title("{} ({})".format(str(preds[idx].item()), str(labels[idx])),
-                        color=("green" if preds[idx]==labels[idx] else "red"))
-        plt.show()
 
     return expression_value
 
@@ -520,52 +501,3 @@ def opToStr(op_int):
     elif op_int == 4: 
         op_str = '-'
     return op_str
-
-
-def test_model(args, digits=True):
-    """
-    Test function to assess models performances 
-    Display a set of the testset with corresponding prediction and label
-    can be either on digit or operator recognition model
-    """
-
-    # test digit model 
-    if digits:
-        #create dataset
-        train_input, test_input, train_target, test_target = create_mnist_data(args.mnist_data, 50)
-        n_output = 9
-        model=Net(n_output)
-        #load model
-        model.load_state_dict(torch.load(args.model_digits))
-        model.eval()
-
-    #test operator model
-    else: 
-        #create dataset
-        train_input, test_input, train_target, test_target = create_operators_data(args.operators_data)
-        n_output = 5
-        model=Net(n_output)
-        #load model 
-        model.load_state_dict(torch.load(args.model_operators))
-        model.eval()
-
-    #create subset to display 
-    images=test_input[20:40]
-    labels=test_target[20:40]
-
-    print(images.size())
-
-    # get sample outputs
-    output = model(images)
-    # convert output probabilities to predicted class
-    preds = torch.argmax(output, 1)
-
-    # plot the images in the batch, along with predicted and true labels
-    images=images.numpy()
-    images=np.squeeze(images, axis=1)
-    fig = plt.figure(figsize=(25, 4))
-    for idx in range(nb_im):
-        ax = fig.add_subplot(nb_im/10, 10, idx+1, xticks=[], yticks=[])
-        ax.imshow(images[idx], cmap='gray')
-        ax.set_title("{} ({})".format(str(preds[idx].item()), str(labels[idx].item())),
-                    color=("green" if preds[idx]==labels[idx] else "red"))

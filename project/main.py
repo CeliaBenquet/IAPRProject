@@ -1,12 +1,6 @@
 import argparse
-from utils import train_model, evaluate_expression, test_model, calculate_equation
+from utils import train_model, evaluate_expression, calculate_equation
 from video import *
-import torch 
-from torch import Tensor 
-from torch import nn
-from torch.nn import functional as F
-from torch import optim
-
 import os
 
 
@@ -81,7 +75,6 @@ def process_video(args, rotation=False):
                 expression_value = evaluate_expression(symbols, args, rotation)
                 result = calculate_equation(expression_value)
                 expression_value += str(result)
-
 
             # Draw data on frame
             draw_bbs(frame, bbs)
@@ -187,8 +180,5 @@ if __name__ == '__main__':
 
     ### run the recognition on video 
     if args.run:
-        #process_video(args.input)
-        #test_model(args,digits=False)
-        #test_model(args,digits=True)
         process_video(args, rotation=args.rotation)
 
