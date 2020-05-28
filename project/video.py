@@ -7,14 +7,23 @@ import matplotlib.pyplot as plt
 from scipy.spatial import distance
 
 def normalize(frame):
+    """
+    Normalized an image based on a small patch for illumination invariance
+    """
     fact = 255/frame[70:100, 40:100].mean()
     normalized_im = np.clip(fact*frame, 0, 255).astype('uint8')
     return normalized_im
 
 def threshold(frame):
+    """
+    Threshold a frame based on mean pixel values
+    """
     return frame.mean(axis=2) < 110
 
 def thresholdArrow(frame):
+    """
+    Threshold a frame to look for the robot's arrow
+    """
     r = frame[:,:,2]
     g = frame[:,:,1]
     b = frame[:,:,0]
@@ -23,6 +32,9 @@ def thresholdArrow(frame):
 
 
 def bounding_box(frame):
+    """
+    Find a bounding box in a frame
+    """
     rows = np.any(frame, axis=1)
     cols = np.any(frame, axis=0)
     rmin, rmax = np.where(rows)[0][[0, -1]]
@@ -31,12 +43,18 @@ def bounding_box(frame):
 
 
 def merge_two_bboxes(A, B):
+    """
+    Merge two bounding boxes
+    """
     x11, y11, x21, y21 = A
     x12, y12, x22, y22 = B
     return (min(x11, x12), min(y11, y12), max(x21, x22), max(y21, y22))
 
 
 def merge_bboxes(bboxes, to_merge):
+    """
+    Merge a set of bounding boxes
+    """
     for merge in to_merge:
         A = bboxes[merge[0]]
         B = bboxes[merge[1]]
@@ -46,6 +64,9 @@ def merge_bboxes(bboxes, to_merge):
 
 
 def bounding_boxes(frame):
+    """
+    Dtermine the bounding boxes in a binary frame
+    """
     labels, nb_labels = skimage.morphology.label(frame, return_num=True)
 
     frame_size = frame.shape[0] * frame.shape[1]
@@ -99,9 +120,15 @@ def bounding_boxes(frame):
     return unique
 
 def get_center(bbox):
+    """
+    Determine the center of a bounding box
+    """
     return np.array([(bbox[0] + bbox[2]) // 2, (bbox[1] + bbox[3]) // 2])
 
 def draw_bbs(img, bbs):
+    """
+    Draw a set of bounding boxes on a frame
+    """
     if len(img.shape) == 3 and img.shape[2] == 3:
         color = (0, 255, 0)
     else:
@@ -111,15 +138,24 @@ def draw_bbs(img, bbs):
         cv2.rectangle(img, bb[0:2], bb[2:4], color)
 
 def expandBbox(bbox, amount):
+    """
+    Expand a bounding box with the same amount of pixels in all directions
+    """
     return bbox[0] - amount, bbox[1] - amount, bbox[2] + amount, bbox[3] + amount
 
 
 def isOverlapping(A, B):
+    """
+    Check if two bounding boxes are overlapping
+    """
     x1min, y1min, x1max, y1max = A
     x2min, y2min, x2max, y2max = B
     return x1min <= x2max and x2min <= x1max and y1min <= y2max and y2min <= y1max
 
 def _resize_pad_to_square_keep_aspect_ratio(img, size, pad_color=0):
+    """
+    Resize to fit an image to a square of a given size, keeping the aspect ratio
+    """
     h, w = img.shape[:2]
     sh, sw = size
 
@@ -157,25 +193,40 @@ def _resize_pad_to_square_keep_aspect_ratio(img, size, pad_color=0):
     return scaled_img, new_w, new_h, pad_left, pad_top
 
 def extractPatches(img, bboxes):
+    """
+    Crop an image using the bounding boxes to extract patches
+    """
     patches = [img[bbox[1]:bbox[3], bbox[0]:bbox[2]] for bbox in bboxes]
     return patches
 
 def normalizePatch(patch):
+    """
+    Normalize a patch to 28x28
+    """
     patches = _resize_pad_to_square_keep_aspect_ratio(patch, (28, 28))[0]
     return patches
 
 def normalizePatches(patches):
+    """
+    Normalize all patches to 28x28
+    """
     patches = [normalizePatch(patch) for patch in patches]
     patches = [(p > 100).astype('uint8') * 255 for p in patches]
     return patches
 
 def printPatches(patches):
+    """
+    Display a set of patches
+    """
     f, ax = plt.subplots(1, len(patches))
     for i in range(len(patches)):
         ax[i].imshow(patches[i], cmap='gray')
     plt.show()
 
 def printPatchesAll(a, b):
+    """
+    Display a set of patches
+    """
     f, ax = plt.subplots(2, len(a))
     for i in range(len(a)):
         ax[0,i].imshow(a[i], cmap='gray')
@@ -184,9 +235,15 @@ def printPatchesAll(a, b):
     plt.show(block=False)
 
 def draw_expression(frame, expression):
+    """
+    Display the expression on a frame
+    """
     cv2.putText(frame, "Expression: " + expression, (100, 400), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,255,255), 2)
 
 def draw_positions(frame, positions):
+    """
+    Draw a set of positions of the robot
+    """
     if len(positions) > 0:
         cv2.circle(frame, positions[0], 1, (255, 0, 0), 10)
         for i in range(1, len(positions)):
