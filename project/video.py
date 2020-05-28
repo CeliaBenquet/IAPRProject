@@ -12,7 +12,7 @@ def normalize(frame):
     return normalized_im
 
 def threshold(frame):
-    return frame.mean(axis=2) < 175
+    return frame.mean(axis=2) < 130
 
 def thresholdArrow(frame):
     r = frame[:,:,2]
@@ -83,6 +83,8 @@ def bounding_boxes(frame):
     for bb in bounding_boxes:
         h = bb[3] - bb[1]
         w = bb[2] - bb[0]
+        if h == 0 or w == 0:
+            continue
         aspect_ratio = w / h
         if aspect_ratio > 0.1:
             filtered_bb.append(bb)

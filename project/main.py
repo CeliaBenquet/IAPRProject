@@ -21,6 +21,8 @@ def process_video(args, rotation=False):
 
     currentframe = 0
     cv2.namedWindow("bbs")
+    cv2.namedWindow("threshold")
+    cv2.namedWindow("mean")
 
     all_centroids = []
     all_patches = []
@@ -31,7 +33,8 @@ def process_video(args, rotation=False):
         ret, frame = cam.read()
 
         if ret:
-            normalized = normalize(frame)
+
+            normalized = frame
 
             thresholdedArrow = thresholdArrow(normalized).astype('uint8') * 255
 
@@ -45,6 +48,8 @@ def process_video(args, rotation=False):
             bbs = [expandBbox(bb, 2) for bb in bounding_boxes(thresholded) if not isOverlapping(bb, arrowBbox)]
 
             centroids = [get_center(b) for b in bbs]
+
+            cv2.imshow("threshold", thresholded);
 
             patches = extractPatches(thresholded, bbs)
             patches = normalizePatches(patches)
