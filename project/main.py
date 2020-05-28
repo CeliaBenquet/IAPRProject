@@ -14,42 +14,52 @@ def process_video(args, rotation=False):
     # Read the video from specified path
     cam = cv2.VideoCapture(args.input)
 
+    # Get the frame size
     frame_size = (int(cam.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cam.get(cv2.CAP_PROP_FRAME_HEIGHT)))
 
+    # Initialize the video writer
     fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
     writer = cv2.VideoWriter(args.output, fourcc, 2, frame_size)
 
-    currentframe = 0
+    # For visualization
     cv2.namedWindow("bbs")
 
+    # Initial state
+    currentframe = 0
     all_centroids = []
     all_patches = []
     symbol_ids = []
     robot_positions = []
 
     while(True): # reading from source
+        # Get a new frame
         ret, frame = cam.read()
 
         if ret:
 
             normalized = frame
 
+            # Find the bounding box of the robot arrow
             thresholdedArrow = thresholdArrow(normalized).astype('uint8') * 255
 
             arrowBbox = bounding_box(thresholdedArrow)
             arrowBbox = expandBbox(arrowBbox, 20)
 
+            # Find the center of the robot
             robotCenter = get_center(arrowBbox)
             robot_positions.append(tuple(robotCenter.tolist()))
 
+            # Find bounding boxes for the digits and symbols
             thresholded = threshold(normalized).astype('uint8') * 255
             bbs = [expandBbox(bb, 2) for bb in bounding_boxes(thresholded) if not isOverlapping(bb, arrowBbox)]
 
             centroids = [get_center(b) for b in bbs]
 
+            # Crop 28x28 patches containg the digits and the symbols
             patches = extractPatches(thresholded, bbs)
             patches = normalizePatches(patches)
 
+            # Find the closest symbol to the robot
             if currentframe == 0:
                 all_centroids = centroids
                 all_patches = patches
@@ -61,21 +71,26 @@ def process_video(args, rotation=False):
 
 
             symbols = [all_patches[i] for i in symbol_ids]
+
+            # Classify the symbols in the expression
             expression_value = evaluate_expression(symbols, args, rotation)
 
+
+            # If at the end, evaluate the expression
             if len(expression_value) > 0 and expression_value[-1] == '=':
                 expression_value = evaluate_expression(symbols, args, rotation)
                 result = calculate_equation(expression_value)
                 expression_value += str(result)
 
 
+            # Draw data on frame
             draw_bbs(frame, bbs)
             draw_positions(frame, robot_positions)
             cv2.rectangle(frame, arrowBbox[0:2], arrowBbox[2:4], (0, 0, 255))
             draw_expression(frame, expression_value)
 
+            # Write to video
             writer.write(frame)
-
 
             cv2.imshow("bbs", frame)
             cv2.waitKey()
