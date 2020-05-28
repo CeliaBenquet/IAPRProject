@@ -478,6 +478,10 @@ def evaluate_expression(symbols, args, rotation=False, show=False):
 
 
 def calculate_equation(expression):
+    """
+    Calculate result of the equation 
+    doesn't take last element into account (=)
+    """
     return eval(expression[:-1])
 
 
