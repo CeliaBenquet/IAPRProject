@@ -1,14 +1,10 @@
-os
-cv2
+opencv-python
 numpy
 scikit-image
-matplotlib.pyplot
-gzip
+matplotlib
+gzip-reader
 torch 
-torch.nn
 scipy
 imgaug
 sklearn
-random
-operator
 argparse

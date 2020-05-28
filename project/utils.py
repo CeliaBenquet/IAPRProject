@@ -1,7 +1,7 @@
 import gzip
 import numpy as np
 import matplotlib.pyplot as plt
-from CNNet import CNNet
+from Net import Net
 import torch 
 from torch import Tensor 
 from torch import nn
@@ -275,7 +275,7 @@ def train_model(path_model, epochs, display_perf, data_dir, digits=True, rotatio
         print("Start training model on operators dataset...")
 
     #create net and parameters of the model 
-    model = CNNet(n_output)
+    model = Net(n_output)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001) 
     display_step = 5
@@ -421,7 +421,7 @@ def evaluate_expression(symbols, args, rotation=False, show=False):
             if rotation: 
                 # classification as a digit, invariant to rotation
                 if os.path.exists(args.model_digits_rotation):
-                    model=CNNet(n_output)
+                    model=Net(n_output)
                     #load the corresponding model 
                     model.load_state_dict(torch.load(args.model_digits_rotation))
                     model.eval()
@@ -434,7 +434,7 @@ def evaluate_expression(symbols, args, rotation=False, show=False):
             else: 
                 # classification as a digit, no invariance to rotation 
                 if os.path.exists(args.model_digits):
-                    model=CNNet(n_output)
+                    model=Net(n_output)
                     #load the corresponding model 
                     model.load_state_dict(torch.load(args.model_digits))
                     model.eval()
@@ -450,7 +450,7 @@ def evaluate_expression(symbols, args, rotation=False, show=False):
             # classification as an operator 
             n_output=5
             if os.path.exists(args.model_operators):
-                model=CNNet(n_output)
+                model=Net(n_output)
                 #load the corresponding model
                 model.load_state_dict(torch.load(args.model_operators))
                 model.eval()
@@ -530,7 +530,7 @@ def test_model(args, digits=True):
         #create dataset
         train_input, test_input, train_target, test_target = create_mnist_data(args.mnist_data, 50)
         n_output = 9
-        model=CNNet(n_output)
+        model=Net(n_output)
         #load model
         model.load_state_dict(torch.load(args.model_digits))
         model.eval()
@@ -540,7 +540,7 @@ def test_model(args, digits=True):
         #create dataset
         train_input, test_input, train_target, test_target = create_operators_data(args.operators_data)
         n_output = 5
-        model=CNNet(n_output)
+        model=Net(n_output)
         #load model 
         model.load_state_dict(torch.load(args.model_operators))
         model.eval()
