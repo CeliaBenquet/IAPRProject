@@ -1,4 +1,8 @@
-# IAPRProject
+# IAPR Project
+Image Analysis and Pattern Recognition
+
+The course aims at learning tools to analyse images and recognize objects in it.
+
 
 The main task of the project is to find the result of an equation based on a video sequence. The equation is indicated by a moving robot. The detailed scenario is defined as follows:
 - Several mathematical operators (multiplication, division, minus, plus, equal) are placed on the table. The color of operators is blue .
